@@ -1,0 +1,402 @@
+<!-- Clawde 라이브 데모 — 표정·감정·다리 움직임과 클릭 점수 게임을 보여주는 데모입니다. -->
+<title>Clawde — catch him!</title>
+<style>
+  :root {
+    --bg: #ece7dc; --fg: #23262d; --muted: #6f6a5f; --card: #f5f1e8;
+    --line: rgba(20,20,20,.12); --accent: #c2683f;
+    --desktop: #1b2030; --desktop2: #232a3d;
+    --term: #0e1117; --termbar: #171c26; --termline: rgba(255,255,255,.07);
+    --term-fg: #cfd6e0; --term-dim: #737d8c; --term-green: #7fb98a; --term-orange: #d98a63;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #14171e; --fg: #e8e4db; --muted: #8b93a2; --card: #1a1e27;
+      --line: rgba(255,255,255,.09); --accent: #d98a63; }
+  }
+  :root[data-theme="light"] { --bg: #ece7dc; --fg: #23262d; --muted: #6f6a5f;
+    --card: #f5f1e8; --line: rgba(20,20,20,.12); --accent: #c2683f; }
+  :root[data-theme="dark"] { --bg: #14171e; --fg: #e8e4db; --muted: #8b93a2;
+    --card: #1a1e27; --line: rgba(255,255,255,.09); --accent: #d98a63; }
+
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    line-height: 1.5; -webkit-font-smoothing: antialiased;
+    display: flex; flex-direction: column; align-items: center;
+    padding: clamp(20px, 4vw, 48px) 20px 40px; }
+  .wrap { width: 100%; max-width: 940px; }
+  header { display: flex; align-items: center; gap: 14px; margin-bottom: 6px; }
+  header canvas { image-rendering: pixelated; width: 40px; height: 40px; }
+  h1 { margin: 0; font-size: clamp(22px, 4vw, 30px); letter-spacing: -.02em;
+    font-weight: 700; text-wrap: balance; }
+  .tag { color: var(--muted); font-size: 15px; margin: 0 0 22px; max-width: 64ch; }
+  .tag b { color: var(--accent); font-weight: 600; }
+
+  .screen-wrap { width: 100%; overflow: hidden; border-radius: 14px;
+    border: 1px solid var(--line); box-shadow: 0 24px 60px -30px rgba(0,0,0,.6); }
+  .stage { position: relative; width: 900px; height: 520px; transform-origin: top left;
+    background: radial-gradient(120% 90% at 50% -10%, var(--desktop2), var(--desktop) 60%);
+    overflow: hidden; }
+  .stage::before { content: ""; position: absolute; inset: 0;
+    background-image: linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px);
+    background-size: 34px 34px;
+    -webkit-mask-image: radial-gradient(90% 90% at 50% 45%, #000 55%, transparent 90%);
+            mask-image: radial-gradient(90% 90% at 50% 45%, #000 55%, transparent 90%); }
+
+  .term { position: absolute; background: var(--term); border-radius: 9px;
+    border: 1px solid var(--termline); overflow: hidden;
+    box-shadow: 0 14px 34px -16px rgba(0,0,0,.7); }
+  .term .bar { height: 26px; background: var(--termbar); display: flex; align-items: center;
+    gap: 6px; padding: 0 10px; border-bottom: 1px solid var(--termline); }
+  .dot { width: 10px; height: 10px; border-radius: 50%; }
+  .term .title { color: var(--term-dim); font: 11px ui-monospace, "DejaVu Sans Mono", monospace;
+    margin-left: 6px; letter-spacing: .02em; }
+  .term pre { margin: 0; padding: 9px 11px;
+    font: 12.5px/1.55 ui-monospace, "DejaVu Sans Mono", monospace; color: var(--term-fg);
+    white-space: pre-wrap; }
+  .p { color: var(--term-green); } .o { color: var(--term-orange); } .d { color: var(--term-dim); }
+  .cur { display: inline-block; width: 7px; height: 14px; background: var(--term-orange);
+    vertical-align: -2px; animation: blink 1.1s steps(1) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  #clawde { position: absolute; z-index: 50; width: 29px; height: 29px; cursor: pointer;
+    image-rendering: pixelated; transform-origin: center; filter: drop-shadow(0 2px 3px rgba(0,0,0,.5)); }
+  .portal { position: absolute; z-index: 45; width: 35px; height: 20px; border-radius: 50%;
+    pointer-events: none; opacity: 0;
+    background: radial-gradient(closest-side, rgba(255,225,190,.95), #e8975f 58%, #c2683f 76%, transparent 84%);
+    box-shadow: 0 0 14px 3px rgba(217,138,99,.55); }
+  #emote { position: absolute; z-index: 61; font-size: 15px; pointer-events: none;
+    opacity: 0; transition: opacity .12s; filter: drop-shadow(0 1px 2px rgba(0,0,0,.5)); }
+  /* fluffy cloud speech box, sits above the emote */
+  #bubble { position: absolute; z-index: 62; background: #fff; color: #16202b;
+    font: 600 11px system-ui, sans-serif; padding: 4px 9px; border-radius: 13px;
+    white-space: nowrap; opacity: 0; transition: opacity .12s; pointer-events: none;
+    box-shadow: 0 4px 12px rgba(0,0,0,.28); }
+  #bubble::before { content: ""; position: absolute; z-index: -1; left: 10px; right: 10px;
+    top: -4px; height: 11px; background: #fff; border-radius: 50%;
+    box-shadow: 16px 3px 0 -3px #fff, -16px 3px 0 -3px #fff, 32px 1px 0 -5px #fff, -32px 1px 0 -5px #fff; }
+  #bubble::after { content: ""; position: absolute; left: 9px; bottom: -8px; width: 8px; height: 8px;
+    background: #fff; border-radius: 50%; box-shadow: -5px 7px 0 -2px #fff; }
+  .pop { position: absolute; z-index: 63; font: 800 15px system-ui, sans-serif;
+    pointer-events: none; text-shadow: 0 1px 3px rgba(0,0,0,.55); font-variant-numeric: tabular-nums; }
+  #comboMeter { position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+    z-index: 64; text-align: center; opacity: 0; transition: opacity .18s; pointer-events: none;
+    font-family: system-ui, sans-serif; color: #ffb27a; }
+  #comboMeter .c-count { font-weight: 800; font-size: 34px; line-height: 1;
+    font-variant-numeric: tabular-nums; text-shadow: 0 2px 8px rgba(0,0,0,.55); }
+  #comboMeter .c-tier { font-weight: 700; font-size: 12px; letter-spacing: .06em; margin-top: 2px;
+    text-shadow: 0 1px 4px rgba(0,0,0,.6); }
+  #comboMeter .c-bar { width: 120px; height: 5px; margin: 6px auto 0; border-radius: 3px;
+    background: rgba(255,255,255,.18); overflow: hidden; }
+  #comboMeter .c-bar > i { display: block; height: 100%; width: 100%; border-radius: 3px; background: currentColor; }
+  #comboMeter.pop .c-count { animation: cpop .22s ease-out; }
+  @keyframes cpop { from { transform: scale(1.5); } to { transform: scale(1); } }
+
+  .hud { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px;
+    margin: 16px 2px 0; font-size: 13.5px; color: var(--muted); }
+  .hud .stat { font-variant-numeric: tabular-nums; }
+  .hud .lbl { font: 700 10px ui-monospace, monospace; letter-spacing: .16em; color: var(--muted); }
+  .hud .num { font: 700 17px system-ui, sans-serif; color: var(--fg); }
+  .hud .combo { color: var(--accent); font-weight: 700; margin-left: 2px; }
+  .hud .hint { color: var(--muted); }
+  .spacer { flex: 1; }
+  button { font: 600 13.5px system-ui, sans-serif; color: #fff; background: var(--accent);
+    border: 0; border-radius: 8px; padding: 8px 15px; cursor: pointer; }
+  button.ghost { background: transparent; color: var(--muted); border: 1px solid var(--line); }
+  button:hover { filter: brightness(1.06); }
+  button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .note { margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--line);
+    color: var(--muted); font-size: 13.5px; max-width: 66ch; }
+  .note a { color: var(--accent); }
+  .eyebrow { font: 600 11px ui-monospace, monospace; letter-spacing: .18em;
+    text-transform: uppercase; color: var(--muted); }
+  @media (prefers-reduced-motion: reduce) { .cur { animation: none; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <canvas id="mark" width="45" height="45" aria-hidden="true"></canvas>
+    <h1>Clawde has feelings — catch him!</h1>
+  </header>
+  <p class="tag">A live simulation of the GNOME Shell extension. Clawde <b>wanders the
+    terminal's margin</b> with <b>moods, memes &amp; a little dance</b>, a diverse shuffling
+    gait, then <b>portals</b> away. He's a moving target — <b>click him to score</b> and
+    chain hits for a combo.</p>
+
+  <div class="screen-wrap"><div class="stage" id="stage">
+    <div class="term" style="left:48px; top:64px; width:392px; height:236px;">
+      <div class="bar"><span class="dot" style="background:#e06c60"></span>
+        <span class="dot" style="background:#e6b24a"></span>
+        <span class="dot" style="background:#68b46a"></span>
+        <span class="title">joey@dev: ~ — zsh</span></div>
+      <pre><span class="p">➜  ~</span> python3 clawde.py
+<span class="d">Clawde is wandering. Ctrl-C to quit.</span>
+<span class="p">➜  ~</span> <span class="cur"></span></pre>
+    </div>
+    <div class="term" style="left:474px; top:52px; width:378px; height:224px;">
+      <div class="bar"><span class="dot" style="background:#e06c60"></span>
+        <span class="dot" style="background:#e6b24a"></span>
+        <span class="dot" style="background:#68b46a"></span>
+        <span class="title">clawde — git</span></div>
+      <pre><span class="p">➜  clawde</span> <span class="o">git:(main)</span>
+$ gnome-extensions enable <span class="d">\</span>
+    clawde@joey114132.github.io
+<span class="d"># Clawde loose over every terminal</span> <span class="cur"></span></pre>
+    </div>
+    <div class="term" style="left:236px; top:312px; width:430px; height:170px;">
+      <div class="bar"><span class="dot" style="background:#e06c60"></span>
+        <span class="dot" style="background:#e6b24a"></span>
+        <span class="dot" style="background:#68b46a"></span>
+        <span class="title">ollama — qwen3.6</span></div>
+      <pre><span class="p">➜  ~</span> ollama run qwen3.6
+<span class="o">&gt;&gt;&gt;</span> add rate limiting to our api <span class="cur"></span></pre>
+    </div>
+
+    <canvas id="clawde" width="45" height="45"></canvas>
+    <div id="emote"></div>
+    <div id="bubble"></div>
+    <div id="comboMeter"><div class="c-count">×2</div><div class="c-tier">NICE!</div><div class="c-bar"><i></i></div></div>
+  </div></div>
+
+  <div class="hud">
+    <span class="stat"><span class="lbl">SCORE</span> <span id="score" class="num">0</span><span id="combo" class="combo"></span></span>
+    <span class="stat"><span class="lbl">BEST</span> <span id="best" class="num">0</span></span>
+    <span class="spacer"></span>
+    <span class="hint">Click Clawde to hit &amp; score</span>
+    <button id="dance">Dance 🕺</button>
+    <button id="poke">Poke 🧡</button>
+    <button id="reset" class="ghost">↺ reset</button>
+  </div>
+
+  <p class="note"><span class="eyebrow">The real thing</span><br>
+    In your GNOME session the extension does this inside your <em>actual</em> terminals —
+    gnome-terminal, Terminator, Ghostty — starting automatically at login. Source &amp;
+    install: <a href="https://github.com/joey114132/clawde">github.com/joey114132/clawde</a>.</p>
+</div>
+
+<script>
+  // ---------- palette + body (legs are applied separately, for varied gaits) ----------
+  const ORANGE = "#d17552", E = "#141414", R = "#e0475b", PK = "#ef7d97", BL = "#5fb0e8", GOLD = "#f5c542";
+  const BODY = ["011000110","111111111","111111111","111111111",
+                "111111111","111111111","111111111","000000000","000000000"];
+  const EMO = {
+    neutral:  { px: [[3,2,E],[3,3,E],[4,2,E],[4,3,E],[3,5,E],[3,6,E],[4,5,E],[4,6,E]], tag: "" },
+    happy:    { px: [[3,2,E],[3,3,E],[3,5,E],[3,6,E],[6,3,E],[6,4,E],[6,5,E]], tag: "✨" },
+    love:     { px: [[3,2,R],[3,3,R],[4,2,R],[4,3,R],[3,5,R],[3,6,R],[4,5,R],[4,6,R],[5,1,PK],[5,7,PK],[6,4,E]], tag: "❤️" },
+    surprise: { px: [[3,2,E],[3,3,E],[4,2,E],[4,3,E],[3,5,E],[3,6,E],[4,5,E],[4,6,E],[6,4,E]], tag: "❗" },
+    sad:      { px: [[4,2,E],[4,3,E],[4,5,E],[4,6,E],[2,3,E],[2,5,E],[5,2,BL],[6,2,BL]], tag: "💧" },
+    angry:    { px: [[2,2,E],[3,3,E],[2,6,E],[3,5,E],[4,2,E],[4,3,E],[4,5,E],[4,6,E]], tag: "💢", shake: 1 },
+    sleepy:   { px: [[4,2,E],[4,3,E],[4,5,E],[4,6,E]], tag: "💤" },
+    dizzy:    { px: [[3,2,E],[4,3,E],[3,6,E],[4,5,E]], tag: "😵", shake: 1 },
+    curious:  { px: [[3,2,E],[3,3,E],[4,2,E],[4,3,E],[3,5,E],[3,6,E],[4,5,E],[4,6,E],[2,5,E]], tag: "❓" },
+    excited:  { px: [[3,2,GOLD],[3,3,GOLD],[4,2,GOLD],[4,3,GOLD],[3,5,GOLD],[3,6,GOLD],[4,5,GOLD],[4,6,GOLD],[6,3,E],[6,4,E],[6,5,E]], tag: "🤩" },
+    wink:     { px: [[4,2,E],[4,3,E],[3,5,E],[3,6,E],[4,5,E],[4,6,E],[6,4,E]], tag: "😉" },
+    laugh:    { px: [[3,2,E],[3,3,E],[3,5,E],[3,6,E],[5,4,E],[6,3,E],[6,4,E],[6,5,E]], tag: "😆" },
+    cool:     { px: [[3,2,E],[3,3,E],[3,4,E],[3,5,E],[3,6,E],[4,2,E],[4,3,E],[4,4,E],[4,5,E],[4,6,E]], tag: "😎" },
+    scared:   { px: [[3,2,E],[3,3,E],[4,2,E],[4,3,E],[3,5,E],[3,6,E],[4,5,E],[4,6,E],[5,7,BL],[6,7,BL]], tag: "😨", shake: 1 },
+    deadpan:  { px: [[4,2,E],[4,3,E],[4,5,E],[4,6,E]], tag: "🗿" },
+    dead:     { px: [[3,2,E],[4,3,E],[3,6,E],[4,5,E]], tag: "💀", shake: 1 },
+    sus:      { px: [[4,3,E],[4,6,E],[2,6,E]], tag: "👀" },
+  };
+  const FLAVORS = ["cool", "wink", "laugh", "curious", "happy"];
+  const MEMES = ["yeet!", "stonks 📈", "such wow", "gg", "this is fine", "no thoughts",
+    "404: nap not found", "sudo pet me", "it works?!", "vibing~", "💀💀💀", "rm -rf feelings"];
+  const DANCE_FACES = ["happy", "excited", "cool", "laugh"];
+
+  // ---------- diverse legs: several stances per gait ----------
+  const LEG = {
+    walk:   [["010101010","010101010"],["010101010","000101010"],["010101010","010001010"],
+             ["010101010","010100010"],["010101010","010101000"]],
+    scurry: [["010101010","000100010"],["010101010","010001000"],["010101010","000101000"],["010101010","010000010"]],
+    hop:    [["010101010","010101010"],["000000000","010101010"]],
+    stand:  [["010101010","010101010"]],
+  };
+
+  function grid(mood, legRows) {
+    const g = BODY.map(row => [...row].map(ch => ch === "1" ? ORANGE : null));
+    if (legRows) for (let i = 0; i < 2; i++) for (let c = 0; c < 9; c++)
+      if (legRows[i][c] === "1") g[7 + i][c] = ORANGE;
+    for (const [r, c, col] of EMO[mood].px) g[r][c] = col;
+    return g;
+  }
+  function draw(cv, g) {
+    const px = 5, ctx = cv.getContext("2d");
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    for (let r = 0; r < 9; r++) for (let c = 0; c < 9; c++) {
+      if (!g[r][c]) continue; ctx.fillStyle = g[r][c]; ctx.fillRect(c * px, r * px, px, px);
+    }
+  }
+  draw(document.getElementById("mark"), grid("happy", LEG.walk[0]));
+
+  const sprite = document.getElementById("clawde"), bubble = document.getElementById("bubble");
+  const emote = document.getElementById("emote"), stage = document.getElementById("stage");
+  const SW = 29, SH = 29, reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const pick = a => a[Math.floor(Math.random() * a.length)];
+  const rand = (a, b) => a + Math.random() * (b - a);
+
+  const WINS = [
+    { x: 48, y: 64, w: 392, h: 236, top: 100 },
+    { x: 474, y: 52, w: 378, h: 224, top: 120 },
+    { x: 236, y: 312, w: 430, h: 170, top: 78 },
+  ];
+  const roam = w => { const pad = 16;
+    return { x: w.x + pad, y: w.y + w.top, w: w.w - 2 * pad, h: w.h - w.top - pad }; };
+  const newTarget = rr => { const mx = SW / 2, my = SH / 2;
+    return { x: rr.x + mx + Math.random() * Math.max(1, rr.w - 2 * mx),
+             y: rr.y + my + Math.random() * Math.max(1, rr.h - 2 * my) }; };
+
+  // ---------- state ----------
+  let wi = 0, x, y, target, busy = false, bubbleUntil = 0, bubbleH = 24;
+  let holdUntil = 0, actKind = null, mood = "neutral", moodUntil = 0, hopStart = -1e9;
+  let gait = "walk", walkDist = 0;
+  let score = 0, best = 0, combo = 0, comboUntil = 0;
+  let tpAt = performance.now() + rand(5000, 9000);
+  { const rr = roam(WINS[0]); const t = newTarget(rr); x = t.x; y = t.y; target = newTarget(rr); }
+
+  const place = () => { sprite.style.left = (x - SW / 2) + "px"; sprite.style.top = (y - SH / 2) + "px"; };
+  const say = t => { bubble.textContent = t; bubble.style.opacity = "1"; bubbleH = bubble.offsetHeight; bubbleUntil = performance.now() + 1600; };
+  const setMood = (m, ms) => { mood = m; moodUntil = performance.now() + ms; };
+  const hop = () => { hopStart = performance.now(); };
+  const newGait = () => { gait = pick(["walk", "walk", "walk", "scurry", "hop"]); };
+
+  // ---------- scoring ----------
+  const $score = document.getElementById("score"), $best = document.getElementById("best"), $combo = document.getElementById("combo");
+  function hud() { $score.textContent = score; $best.textContent = best; $combo.textContent = combo > 1 ? "  ×" + combo : ""; }
+  function floatScore(pts, cb) {
+    const el = document.createElement("div"); el.className = "pop";
+    el.textContent = "+" + pts + (cb > 1 ? "  ×" + cb : "");
+    el.style.left = x + "px"; el.style.top = (y - SH / 2 - 2) + "px";
+    el.style.color = cb >= 4 ? GOLD : cb >= 2 ? "#ffb27a" : "#fff";
+    stage.appendChild(el);
+    el.animate([{ transform: "translateY(0)", opacity: 1 }, { transform: "translateY(-36px)", opacity: 0 }],
+      { duration: 750, easing: "ease-out" }).finished.then(() => el.remove());
+  }
+  const COMBO_MS = 1800;
+  const meter = document.getElementById("comboMeter");
+  const mCount = meter.querySelector(".c-count"), mTier = meter.querySelector(".c-tier"), mBar = meter.querySelector(".c-bar > i");
+  const comboTier = c => c >= 10 ? ["CLAWDE STORM ⚡", "#ff5db1"] : c >= 7 ? ["ON FIRE 🔥", "#ff6a3d"]
+    : c >= 4 ? ["COMBO!", "#f5c542"] : ["NICE!", "#ffb27a"];
+  function showCombo() {
+    if (combo < 2) { meter.style.opacity = "0"; return; }
+    const [label, col] = comboTier(combo);
+    meter.style.color = col; mCount.textContent = "×" + combo; mTier.textContent = label;
+    meter.style.opacity = "1";
+    meter.classList.remove("pop"); void meter.offsetWidth; meter.classList.add("pop");
+  }
+  function dartAway() { target = newTarget(roam(WINS[wi])); holdUntil = 0; newGait(); }
+
+  function hit() {
+    const now = performance.now();
+    combo = now < comboUntil ? combo + 1 : 1; comboUntil = now + COMBO_MS;
+    const pts = 10 * combo; score += pts; if (score > best) best = score;
+    hud(); showCombo(); floatScore(pts, combo);
+    const wasAsleep = now < holdUntil && actKind === "sleep";
+    holdUntil = 0;
+    if (wasAsleep) { setMood("surprise", 700); say("!!"); hop(); dartAway(); }
+    else if (combo >= 6) { setMood("dizzy", 1500); say("@_@"); setTimeout(teleport, 900); }
+    else if (combo >= 4) { setMood("excited", 1000); say(pick(["whoa!", "×" + combo + "!", "nice!"])); hop(); setTimeout(teleport, 550); }
+    else if (combo >= 2) { setMood("excited", 900); say(pick(["hehe", "again!", "×" + combo])); hop(); dartAway(); }
+    else if (Math.random() < 0.15) { setMood("love", 1200); say("♥"); dartAway(); }
+    else { setMood("happy", 900); say(pick(["boop!", "hi!", "wheee!", "ow!"])); hop(); dartAway(); }
+  }
+  sprite.addEventListener("click", hit);
+  document.getElementById("poke").addEventListener("click", hit);
+  document.getElementById("reset").addEventListener("click", () => { score = 0; combo = 0; hud(); });
+  document.getElementById("dance").addEventListener("click", () => startDance());
+
+  // ---------- portal teleport ----------
+  const anim = (el, kf, ms) => el.animate(kf, { duration: ms, easing: "ease-out", fill: "forwards" }).finished;
+  const portal = (cx, cy) => { const p = document.createElement("div"); p.className = "portal";
+    p.style.left = (cx - 17) + "px"; p.style.top = (cy - 10) + "px"; stage.appendChild(p); return p; };
+  const openP = async p => { if (reduce) { p.style.opacity = "1"; return; }
+    await anim(p, [{ transform: "scale(0) rotate(0)", opacity: 0 }, { transform: "scale(1) rotate(200deg)", opacity: 1 }], 220); };
+  const closeP = async p => { if (!reduce)
+    await anim(p, [{ transform: "scale(1) rotate(200deg)", opacity: 1 }, { transform: "scale(0) rotate(360deg)", opacity: 0 }], 180); p.remove(); };
+
+  async function teleport() {
+    if (busy) return; busy = true; emote.style.opacity = "0"; bubble.style.opacity = "0"; bubbleUntil = 0;
+    const pA = portal(x, y); await openP(pA);
+    if (!reduce) await anim(sprite, [{ transform: "scale(1)", opacity: 1 }, { transform: "scale(0)", opacity: .2 }], 200);
+    sprite.style.visibility = "hidden"; await closeP(pA);
+    let n; do { n = Math.floor(Math.random() * WINS.length); } while (n === wi && WINS.length > 1); wi = n;
+    const rr = roam(WINS[wi]); const t = newTarget(rr); x = t.x; y = t.y; target = newTarget(rr); newGait(); place();
+    const pB = portal(x, y); await openP(pB); sprite.style.visibility = "visible";
+    if (!reduce) await anim(sprite, [{ transform: "scale(0)", opacity: .2 }, { transform: "scale(1)", opacity: 1 }], 240);
+    sprite.style.transform = ""; await closeP(pB);
+    mood = "neutral"; moodUntil = 0; holdUntil = 0;
+    tpAt = performance.now() + rand(5000, 9000); busy = false;
+  }
+
+  // ---------- dance + decide next action ----------
+  function startDance(now) { actKind = "dance"; holdUntil = (now || performance.now()) + 2400; hop(); }
+  function decide(now) {
+    if (Math.random() < 0.42) { target = newTarget(roam(WINS[wi])); newGait(); return; }
+    const r = Math.random();
+    if (r < 0.12) { startDance(now); return; }                                   // break into a dance
+    if (r < 0.24) { setMood(pick(["deadpan", "dead", "sus", "cool"]), 1100); say(pick(MEMES)); actKind = "look"; holdUntil = now + 1200; return; }
+    if (r < 0.36) { setMood("surprise", 550); actKind = "look"; holdUntil = now + 750; return; }
+    if (r < 0.50) { setMood(pick(FLAVORS), 900); actKind = "look"; holdUntil = now + 950; return; }
+    actKind = r < 0.72 ? "look" : r < 0.88 ? "sit" : "sleep";
+    holdUntil = now + (actKind === "sleep" ? 2800 : actKind === "look" ? 1000 : 1300);
+  }
+
+  // ---------- main loop ----------
+  const SPEED = reduce ? 1.4 : 2.3;
+  function frame(now) {
+    requestAnimationFrame(frame);
+    if (combo > 0 && now > comboUntil) { combo = 0; hud(); meter.style.opacity = "0"; }
+    if (combo >= 2) mBar.style.width = Math.max(0, (comboUntil - now) / COMBO_MS * 100) + "%";
+    if (busy) return;
+    if (now >= tpAt) { teleport(); return; }
+
+    let walking = false;
+    if (now >= holdUntil) {
+      const dx = target.x - x, dy = target.y - y, dist = Math.hypot(dx, dy);
+      if (dist < 3) { decide(now); }
+      else { const sp = gait === "scurry" ? SPEED * 1.7 : SPEED;
+        x += dx / dist * sp; y += dy / dist * sp; walkDist += sp; walking = true; }
+    }
+
+    const dancing = now < holdUntil && actKind === "dance";
+    let expr, legRows, bob = 0, extra = "", tag;
+    if (dancing) {
+      expr = DANCE_FACES[Math.floor(now / 260) % DANCE_FACES.length];
+      legRows = LEG.scurry[Math.floor(now / 90) % LEG.scurry.length];
+      bob = -Math.abs(Math.sin(now / 110)) * 6;
+      extra = " translateX(" + Math.round(Math.sin(now / 110) * 7) + "px) rotate(" + (Math.sin(now / 140) * 8).toFixed(1) + "deg)";
+      tag = "🎵";
+    } else {
+      expr = now < moodUntil ? mood
+        : now < holdUntil ? (actKind === "sleep" ? "sleepy" : actKind === "sit" ? "happy" : "curious")
+        : walking && Math.floor(now / 900) % 4 === 0 ? "happy" : "neutral";
+      const sitting = now < holdUntil && (actKind === "sit" || actKind === "sleep");
+      const seq = LEG[gait];
+      legRows = sitting ? null : (walking ? seq[Math.floor(walkDist / 7) % seq.length] : LEG.stand[0]);
+      bob = walking ? (Math.floor(walkDist / 7) % 2 ? (gait === "hop" ? -5 : -2) : 0) : 0;
+      if (EMO[expr].shake) extra += " translateX(" + Math.round(Math.sin(now / 55) * 2) + "px)";
+      if (expr === "dizzy") extra += " rotate(" + (Math.sin(now / 110) * 12).toFixed(1) + "deg)";
+      tag = EMO[expr].tag;
+    }
+    draw(sprite, grid(expr, legRows));
+    let hopY = 0; const he = now - hopStart; if (he < 320) hopY = -Math.sin(he / 320 * Math.PI) * 8;
+    sprite.style.transform = "translate(0px," + (bob + hopY) + "px)" + extra;
+    place();
+
+    const head = y - SH / 2;
+    if (tag) { if (emote.textContent !== tag) emote.textContent = tag; emote.style.opacity = "1";
+      emote.style.left = (x - 4) + "px"; emote.style.top = (head - 12) + "px"; }
+    else emote.style.opacity = "0";
+    if (bubbleUntil) {
+      bubble.style.left = Math.max(4, x - 12) + "px";
+      bubble.style.top = (head - bubbleH - (tag ? 14 : 8)) + "px";   // cloud floats above the head, tail down
+      if (now > bubbleUntil) { bubble.style.opacity = "0"; bubbleUntil = 0; }
+    }
+  }
+  place(); draw(sprite, grid("neutral", LEG.stand[0])); hud(); requestAnimationFrame(frame);
+
+  // ---------- fit the 900x520 stage to width ----------
+  const wrapEl = stage.parentElement;
+  const fit = () => { const s = Math.min(1, wrapEl.clientWidth / 900);
+    stage.style.transform = "scale(" + s + ")"; wrapEl.style.height = (520 * s) + "px"; };
+  new ResizeObserver(fit).observe(wrapEl); fit();
+</script>

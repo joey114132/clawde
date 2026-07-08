@@ -11,6 +11,11 @@
   shows his feelings · dances when the mood strikes · and drops the odd meme.
 </p>
 
+<p align="center">
+  <a href="https://joey114132.github.io/clawde/"><img src="assets/demo.gif" alt="Clawde wandering across mock terminals, building a combo, and dancing" width="760"></a>
+</p>
+<p align="center"><a href="https://joey114132.github.io/clawde/">▶ <b>play with the live demo</b></a></p>
+
 ---
 
 ## 🚀 install in one line
