@@ -1,0 +1,2 @@
+# Clawde has no third-party dependencies.
+# Python 3.8+ standard library only — nothing to install.
