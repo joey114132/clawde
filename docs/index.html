@@ -1,5 +1,47 @@
-<!-- Clawde 라이브 데모 — 표정·감정·다리 움직임과 클릭 점수 게임을 보여주는 데모입니다. -->
-<title>Clawde — catch him!</title>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!-- Clawde 라이브 데모 페이지 — SEO 메타 포함 -->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Clawde — a Claude Code terminal &amp; desktop mascot 🧡</title>
+<meta name="description" content="A tiny pixel Claude Code mascot that wanders your terminals and desktop — moods, dances, and an oneko-style dash away from your cursor. Free for Windows, macOS, Linux &amp; GNOME.">
+<meta name="keywords" content="clawde, claude mascot, claude code mascot, terminal pet, desktop pet, oneko, shimeji, gnome shell extension, pixel pet, cli mascot, electron pet">
+<meta name="author" content="joey114132">
+<link rel="canonical" href="https://joey114132.github.io/clawde/">
+<meta name="robots" content="index, follow">
+<meta name="theme-color" content="#c2683f">
+<link rel="icon" type="image/png" href="clawde.png">
+<link rel="apple-touch-icon" href="clawde.png">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Clawde">
+<meta property="og:title" content="Clawde — a Claude Code terminal & desktop mascot">
+<meta property="og:description" content="A tiny pixel Claude that wanders your terminals and desktop — moods, dances, runs from your cursor, and teleports between windows. Free for Windows, macOS, Linux & GNOME.">
+<meta property="og:url" content="https://joey114132.github.io/clawde/">
+<meta property="og:image" content="https://joey114132.github.io/clawde/clawde.png">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Clawde — a Claude Code terminal & desktop mascot">
+<meta name="twitter:description" content="A tiny pixel Claude that wanders your terminals and desktop — moods, dances, runs from your cursor. Free for Windows, macOS, Linux & GNOME.">
+<meta name="twitter:image" content="https://joey114132.github.io/clawde/clawde.png">
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Clawde",
+  "description": "A pixel Claude Code mascot that wanders your terminals and desktop with moods, dances, and an oneko-style run from your cursor.",
+  "applicationCategory": "UtilitiesApplication",
+  "operatingSystem": "Windows, macOS, Linux",
+  "url": "https://joey114132.github.io/clawde/",
+  "image": "https://joey114132.github.io/clawde/clawde.png",
+  "downloadUrl": "https://github.com/joey114132/clawde/releases/latest",
+  "author": { "@type": "Person", "name": "joey114132", "url": "https://github.com/joey114132" },
+  "license": "https://github.com/joey114132/clawde/blob/main/LICENSE",
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+}
+</script>
 <style>
   :root {
     --bg: #ece7dc; --fg: #23262d; --muted: #6f6a5f; --card: #f5f1e8;
@@ -555,3 +597,5 @@ $ gnome-extensions enable <span class="d">\</span>
   nickInput.addEventListener("keydown", (e) => { if (e.key === "Enter") submitMyScore(); });
   loadBoard();
 </script>
+</body>
+</html>
