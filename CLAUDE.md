@@ -1,14 +1,16 @@
-# claude-mascot — Clawde
+# clawde — a Claude Code terminal mascot
 
 A Claude Code mascot ("Clawde") that wanders around while you work.
 
 ## Surfaces
 
-- **Terminal** (done, MVP): `clawde.py` animates Clawde across the terminal via
-  ANSI escapes in the alternate screen buffer. Wanders, idles, occasionally darts.
-- **VS Code / Claude IDE** (planned): a webview panel where Clawde wanders inside
-  its box. NOTE: VS Code extensions cannot overlay a sprite freely over the editor —
-  the mascot is confined to a panel/sidebar webview. That's an API limit, not a TODO.
+- **Terminal** (`clawde.py`, done): ANSI in the alternate screen buffer. One pane.
+- **GNOME Shell extension** (`gnome-extension/`, built): runs inside gnome-shell, so
+  the sprite floats over every window/tab/app across all workspaces — the only way to
+  roam across separate terminals/tabs on GNOME Wayland. Written for GNOME 46 (ESM);
+  needs live-shell testing (can't be verified headlessly).
+- **VS Code panel** (`vscode-extension/`, built): a webview-panel Clawde. Sandboxed —
+  bounded to the panel, can't overlay the editor. Portable across OSes.
 
 ## Commands
 

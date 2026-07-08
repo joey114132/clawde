@@ -1,0 +1,8 @@
+{
+  "uuid": "clawde@joey114132.github.io",
+  "name": "Clawde",
+  "description": "A Claude Code mascot that wanders over your whole desktop — every terminal, its tabs, Terminator, Ghostty, VS Code, the panel, all workspaces. Because it runs inside GNOME Shell, it floats above everything and passes clicks straight through.",
+  "shell-version": ["45", "46", "47", "48"],
+  "url": "https://github.com/joey114132/clawde",
+  "version": 1
+}

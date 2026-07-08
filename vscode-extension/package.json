@@ -1,0 +1,18 @@
+{
+  "name": "clawde",
+  "displayName": "Clawde",
+  "description": "A Claude Code mascot that wanders inside a VS Code panel while you code.",
+  "version": "0.0.1",
+  "publisher": "joey114132",
+  "license": "MIT",
+  "repository": { "type": "git", "url": "https://github.com/joey114132/clawde" },
+  "engines": { "vscode": "^1.75.0" },
+  "categories": ["Other"],
+  "activationEvents": [],
+  "main": "./extension.js",
+  "contributes": {
+    "commands": [
+      { "command": "clawde.show", "title": "Clawde: Show Mascot" }
+    ]
+  }
+}

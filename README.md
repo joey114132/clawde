@@ -1,49 +1,83 @@
-# 🧡 Clawde — a Claude Code terminal mascot
+<h1 align="center">clawde 🧡</h1>
 
-A tiny Claude character that wanders around your terminal while you code. It walks,
-pauses to idle, and every so often **darts off** across the screen. Pure Python
-stdlib, zero dependencies, and it draws into the alternate screen buffer so your
-scrollback stays untouched.
+<p align="center"><b>a tiny pixel Claude that lives in your terminals.</b></p>
 
-```
-              (◕ᴥ◕)
+<p align="center">
+  <img src="assets/clawde.png" alt="Clawde — a little orange pixel creature with two black eyes" width="200">
+</p>
 
-   =(◔ᴥ◔)              (-ᴥ-)
-```
+<p align="center">
+  he wanders the edges of your terminal windows · portals between them ·<br>
+  shows his feelings · dances when the mood strikes · and drops the odd meme.
+</p>
 
-## Run
+---
+
+## meet clawde
+
+Clawde is a desktop mascot that hangs out *inside* your terminals while you code.
+He is not useful. That is entirely the point — he's just here to keep you company. 🐾
+
+- 🚶 **wanders** the blank margin of a terminal window, with a shuffling, never-quite-the-same gait
+- 🌀 **portals** to another terminal every few seconds
+- 🎭 **has feelings** — happy, sleepy, dizzy, curious, head-over-heels in love, and more
+- 🕺 **dances** entirely unprompted
+- 💀 **memes** — "this is fine", "stonks 📈", "404: nap not found"
+- 👆 **reacts** when you poke him — gently, or... rather less gently
+
+## three ways to run him
+
+| where | what he does |
+|---|---|
+| 🖥️ **GNOME Shell** — [`gnome-extension/`](gnome-extension/) | roams over **every** terminal, tab, and app across your whole desktop — the full experience |
+| 🐍 **Terminal** — [`clawde.py`](clawde.py) | a pure-Python Clawde in one terminal pane, zero dependencies |
+| 🧩 **VS Code** — [`vscode-extension/`](vscode-extension/) | Clawde in a little panel beside your code |
+
+> **The GNOME extension is the real one.** It runs inside the compositor, so Clawde can
+> float over all your windows at once and hop between them. On GNOME Wayland it's the
+> *only* way to do that — a terminal program is trapped inside its own pane.
+
+## quick start — GNOME 🖥️
 
 ```bash
-python3 clawde.py
+cd gnome-extension && ./install.sh
+# log out and back in (Wayland needs to rescan the shell), then:
+gnome-extensions enable clawde@joey114132.github.io
 ```
 
-Press **Ctrl-C** to send Clawde home (the terminal restores cleanly).
+That's it — from now on Clawde shows up **on his own** every time you log in. When you
+need some peace: `gnome-extensions disable clawde@joey114132.github.io`.
 
-Options:
+## quick start — terminal 🐍
 
-| Flag | Meaning |
-|---|---|
-| `--speed 0.2` | seconds per frame (higher = slower) |
-| `--no-color` | drop the Claude-orange coloring |
-| `--frames N` | run N frames then exit (handy for CI / a quick look) |
-| `--selftest` | run the movement-logic checks and exit |
+```bash
+python3 clawde.py        # Ctrl-C when it's time for him to go
+```
 
-Best experience: give Clawde its **own terminal window or tmux pane** and let it roam
-there beside your work. In a shared pane it'll happily wander over your prompt too —
-it never writes to scrollback, so nothing is left behind.
+No dependencies, Python 3.8+. He draws to the alternate screen, so your scrollback stays
+spotless.
 
-## VS Code / Claude IDE?
+## how clawde feels 🎭
 
-Planned — but honestly scoped. A VS Code extension **can't** let a sprite roam over
-your actual code (the extension API sandboxes that). What it can do is host Clawde in
-a **webview panel** (sidebar or bottom pane) where it wanders inside its box. That's
-the phase-2 plan.
+`happy ✨` · `love ❤️` · `sleepy 💤` · `dizzy 😵` · `curious ❓` · `surprised ❗` ·
+`cool 😎` · `sad 💧` — plus a few meme faces (`🗿` `💀` `👀`) for when words fail.
 
-## Roadmap
+## the honest bits 📎
 
-- [ ] Run *away from* your mouse pointer (oneko-style)
-- [ ] VS Code webview panel
-- [ ] tmux status-line mode
-- [ ] Config for color / sprite / speed
+- The GNOME extension targets **GNOME 46** (ESM). If Clawde doesn't appear after enabling,
+  peek at `journalctl --user -b | grep -i clawde` — and open an issue. 🙏
+- A terminal script genuinely **can't** cross tabs or windows (each is its own pseudo-terminal).
+  That's *why* the "over everything" version has to be a Shell extension — a Wayland fact,
+  not a missing feature.
+- VS Code sandboxes its extensions, so that Clawde politely stays in his panel.
 
-MIT licensed.
+## roadmap 🗺️
+
+- [ ] run *away* from your cursor (oneko-style)
+- [ ] richer sprite art & more little animations
+- [ ] preferences — speed, size, which monitor
+- [ ] tmux mode
+
+---
+
+<p align="center">made with 🧡 &nbsp;·&nbsp; MIT</p>
