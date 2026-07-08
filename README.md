@@ -3,6 +3,12 @@
 <p align="center"><b>a tiny pixel Claude that lives in your terminals.</b></p>
 
 <p align="center">
+  <a href="https://github.com/joey114132/clawde/releases/latest"><img alt="download" src="https://img.shields.io/github/v/release/joey114132/clawde?label=%E2%AC%87%20download&color=d17552"></a>
+  <a href="https://joey114132.github.io/clawde/"><img alt="live demo" src="https://img.shields.io/badge/live_demo-%E2%96%B6-d17552"></a>
+  <img alt="license" src="https://img.shields.io/badge/license-MIT-blue">
+</p>
+
+<p align="center">
   <img src="assets/clawde.png" alt="Clawde — a little orange pixel creature with two black eyes" width="200">
 </p>
 
