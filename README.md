@@ -27,11 +27,11 @@ He is not useful. That is entirely the point — he's just here to keep you comp
 
 ## three ways to run him
 
-| where | what he does |
-|---|---|
-| 🖥️ **GNOME Shell** — [`gnome-extension/`](gnome-extension/) | roams over **every** terminal, tab, and app across your whole desktop — the full experience |
-| 🐍 **Terminal** — [`clawde.py`](clawde.py) | a pure-Python Clawde in one terminal pane, zero dependencies |
-| 🧩 **VS Code** — [`vscode-extension/`](vscode-extension/) | Clawde in a little panel beside your code |
+| where | runs on | what he does |
+|---|---|---|
+| 🖥️ **GNOME Shell** — [`gnome-extension/`](gnome-extension/) | Linux · GNOME | roams over **every** terminal, tab, and app across your whole desktop — the full experience |
+| 🐍 **Terminal** — [`clawde.py`](clawde.py) | **Windows · macOS · Linux** | a pure-Python Clawde in one terminal pane, zero deps, any shell |
+| 🧩 **VS Code** — [`vscode-extension/`](vscode-extension/) | **Windows · macOS · Linux** | Clawde in a little panel beside your code |
 
 > **The GNOME extension is the real one.** It runs inside the compositor, so Clawde can
 > float over all your windows at once and hop between them. On GNOME Wayland it's the
@@ -48,14 +48,16 @@ gnome-extensions enable clawde@joey114132.github.io
 That's it — from now on Clawde shows up **on his own** every time you log in. When you
 need some peace: `gnome-extensions disable clawde@joey114132.github.io`.
 
-## quick start — terminal 🐍
+## quick start — terminal 🐍 (Windows · macOS · Linux)
 
 ```bash
-python3 clawde.py        # Ctrl-C when it's time for him to go
+python3 clawde.py     # macOS / Linux — any shell (zsh, bash, fish)
+py clawde.py          # Windows — PowerShell or cmd
 ```
 
-No dependencies, Python 3.8+. He draws to the alternate screen, so your scrollback stays
-spotless.
+No dependencies, Python 3.8+, runs from any shell. On Windows he auto-enables VT so the
+ANSI renders (Windows Terminal recommended). Ctrl-C sends him home — he draws to the
+alternate screen, so your scrollback stays spotless.
 
 ## how clawde feels 🎭
 

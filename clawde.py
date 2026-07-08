@@ -1,13 +1,17 @@
 #!/usr/bin/env python3
 """Clawde — a Claude Code terminal mascot that wanders your terminal.
 
-    python3 clawde.py            # let Clawde loose (Ctrl-C to quit)
+    python3 clawde.py            # macOS / Linux   (Ctrl-C to quit)
+    py clawde.py                 # Windows (PowerShell / cmd)
     python3 clawde.py --speed 0.2
     python3 clawde.py --selftest # logic check, no animation
 
-Pure stdlib, no dependencies. Draws into the alternate screen buffer so it
-never touches your scrollback.
+Pure stdlib, no dependencies. Cross-platform: Windows / macOS / Linux, launched from
+any shell (PowerShell, cmd, zsh, bash, fish). On Windows it auto-enables VT processing
+so the ANSI escapes render. Draws into the alternate screen buffer, so it never touches
+your scrollback.
 """
+import os
 import sys
 import time
 import random
@@ -117,6 +121,27 @@ def selftest():
     print("selftest ok")
 
 
+def _enable_ansi():
+    """Make output portable: UTF-8 for the sprite glyphs, and on Windows switch on VT
+    processing so ANSI escapes render in conhost / PowerShell / cmd (Windows 10+).
+    Best-effort — modern terminals (Windows Terminal, iTerm, most Linux) already work."""
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+    except (AttributeError, ValueError):
+        pass
+    if os.name != "nt":
+        return
+    try:
+        import ctypes
+        kernel32 = ctypes.windll.kernel32
+        handle = kernel32.GetStdHandle(-11)  # STD_OUTPUT_HANDLE
+        mode = ctypes.c_uint()
+        if kernel32.GetConsoleMode(handle, ctypes.byref(mode)):
+            kernel32.SetConsoleMode(handle, mode.value | 0x0004)  # ENABLE_VIRTUAL_TERMINAL_PROCESSING
+    except Exception:
+        pass  # ponytail: best-effort; if it fails the terminal likely has VT on already
+
+
 def main():
     ap = argparse.ArgumentParser(description="Clawde — a Claude Code terminal mascot.")
     ap.add_argument("--speed", type=float, default=0.12, help="seconds per frame")
@@ -127,7 +152,11 @@ def main():
     if a.selftest:
         selftest()
         return
-    signal.signal(signal.SIGTERM, lambda *_: sys.exit(0))  # restore on kill via finally
+    _enable_ansi()
+    try:
+        signal.signal(signal.SIGTERM, lambda *_: sys.exit(0))  # restore on kill via finally
+    except (ValueError, OSError, AttributeError):
+        pass  # SIGTERM not settable on every platform; Ctrl-C still restores via finally
     try:
         run(speed=a.speed, color=not a.no_color, max_frames=a.frames)
     except KeyboardInterrupt:
