@@ -39,41 +39,62 @@ He is not useful. That is entirely the point — he's just here to keep you comp
 > installer, run it once, and Clawde auto-appears at every login. Same pet, different
 > wrapper, because Win/Mac have no shell-extension model.
 
-## install — GNOME 🖥️
+## install 📦
 
-**One line** — downloads, installs, and pre-enables him:
+### 💻 Windows & macOS — the desktop pet (recommended)
+
+The full "over everything" Clawde: download once, and he wanders your whole screen at
+every login — no terminal, no python.
+
+1. Open the **[latest release](https://github.com/joey114132/clawde/releases/latest)** and
+   download the file for your OS:
+   - **Windows** → `Clawde-Setup-0.1.0.exe`
+   - **macOS** → `Clawde-0.1.0.dmg`
+2. Run it:
+   - **Windows** — double-click the `.exe`. SmartScreen may warn *"unknown publisher"* (it's
+     not code-signed yet) → click **More info → Run anyway**.
+   - **macOS** — open the `.dmg`, drag **Clawde** into **Applications**, then the *first* time
+     **right-click Clawde → Open** (a plain double-click is blocked for unsigned apps) → **Open**.
+3. Clawde starts wandering. He lives in the **system tray** (Windows) / **menu bar** (macOS) 🧡 —
+   click it for **Start at login** (on by default) and **Quit**.
+
+Done. He now appears on his own every time you log in.
+
+### 🖥️ Linux — the GNOME Shell extension
+
+One line — downloads, installs, and pre-enables him:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/joey114132/clawde/main/web-install.sh | bash
 ```
 
-Then **log out and back in** — Clawde appears on his own. That's it. 🎉
-Peace and quiet whenever: `gnome-extensions disable clawde@joey114132.github.io`.
+Then **log out and back in** — Clawde appears on his own. Turn him off with
+`gnome-extensions disable clawde@joey114132.github.io`.
+*(Prefer the desktop app on Linux too? Grab the `.AppImage` from the [releases](https://github.com/joey114132/clawde/releases/latest). A one-click [extensions.gnome.org](https://extensions.gnome.org) listing is the goal — Snap can't host a Shell extension, so it isn't an option.)*
 
-<details><summary>prefer to install from a clone?</summary>
+<details><summary>install from a clone instead</summary>
 
 ```bash
 git clone https://github.com/joey114132/clawde
-cd clawde/gnome-extension && ./install.sh
-# then log out / back in
+cd clawde/gnome-extension && ./install.sh   # then log out / back in
 ```
 </details>
 
-> **A one-click store is the goal:** Clawde is headed for
-> **[extensions.gnome.org](https://extensions.gnome.org)** (install straight from the site
-> or the *Extension Manager* app). Note: **Snap can't do it** — a GNOME Shell extension has
-> to live in the shell's own extensions folder, which Snap's sandbox can't reach.
-
-## quick start — terminal 🐍 (Windows · macOS · Linux)
+### 🐍 Any OS — the terminal one (no install)
 
 ```bash
 python3 clawde.py     # macOS / Linux — any shell (zsh, bash, fish)
 py clawde.py          # Windows — PowerShell or cmd
 ```
 
-No dependencies, Python 3.8+, runs from any shell. On Windows he auto-enables VT so the
-ANSI renders (Windows Terminal recommended). Ctrl-C sends him home — he draws to the
-alternate screen, so your scrollback stays spotless.
+Python 3.8+, zero dependencies, runs from any shell. On Windows he auto-enables VT so the
+ANSI renders (Windows Terminal recommended). **Ctrl-C** sends him home — he draws to the
+alternate screen, so your scrollback stays untouched.
+
+### 🧩 VS Code — the panel
+
+Open [`vscode-extension/`](vscode-extension/) in VS Code and press **F5**, or package it
+with `vsce`. A Clawde wanders in a panel beside your code.
 
 ## how clawde feels 🎭
 
@@ -88,6 +109,8 @@ alternate screen, so your scrollback stays spotless.
   That's *why* the "over everything" version has to be a Shell extension — a Wayland fact,
   not a missing feature.
 - VS Code sandboxes its extensions, so that Clawde politely stays in his panel.
+- The Windows/macOS desktop app isn't code-signed yet — first launch shows an
+  "unknown publisher / unidentified developer" prompt. Choose *Run anyway* / *Open*.
 
 ## roadmap 🗺️
 
