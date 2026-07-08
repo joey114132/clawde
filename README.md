@@ -13,6 +13,28 @@
 
 ---
 
+## 🚀 install in one line
+
+Each command downloads the app, installs it, and Clawde starts wandering right away —
+and comes back every time you log in. 🎉
+
+**macOS**
+```bash
+curl -fsSL https://raw.githubusercontent.com/joey114132/clawde/main/install.sh | bash
+```
+
+**Linux**
+```bash
+curl -fsSL https://raw.githubusercontent.com/joey114132/clawde/main/install.sh | bash
+```
+
+**Windows** — in PowerShell:
+```powershell
+irm https://raw.githubusercontent.com/joey114132/clawde/main/install.ps1 | iex
+```
+
+<sub>Not code-signed yet, so the first launch shows a "run anyway / open" prompt. See [install](#install-) for the manual/store options.</sub>
+
 ## meet clawde
 
 Clawde is a desktop mascot that hangs out *inside* your terminals while you code.
