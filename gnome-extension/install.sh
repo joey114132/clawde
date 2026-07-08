@@ -10,6 +10,7 @@ DEST="$HOME/.local/share/gnome-shell/extensions/$UUID"
 mkdir -p "$(dirname "$DEST")"
 rm -rf "$DEST"
 cp -r "$SRC" "$DEST"
+command -v glib-compile-schemas >/dev/null 2>&1 && glib-compile-schemas "$DEST/schemas" 2>/dev/null || true
 echo "✓ installed → $DEST"
 
 # Pre-enable via gsettings. gnome-extensions enable fails until the shell rescans

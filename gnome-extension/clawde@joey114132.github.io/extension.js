@@ -89,8 +89,18 @@ export default class ClawdeExtension extends Extension {
     this._target = this._newTarget();
     this._tpAt = Date.now() + rand(TP_MIN, TP_MAX);
 
+    this._settings = this.getSettings();
+    this._loadSettings();
+    this._settingsId = this._settings.connect("changed", () => this._loadSettings());
     const id = GLib.timeout_add(GLib.PRIORITY_DEFAULT, TICK_MS, () => { this._tick(); return GLib.SOURCE_CONTINUE; });
     this._sources.add(id);
+  }
+
+  _loadSettings() {
+    this._speedMul = this._settings.get_double("speed");
+    this._sizeMul = this._settings.get_double("size");
+    this._monitor = this._settings.get_int("monitor");
+    if (this._sprite) { this._sprite.set_pivot_point(0.5, 0.5); this._sprite.set_scale(this._sizeMul, this._sizeMul); }
   }
 
   _paint(area) {
@@ -110,7 +120,9 @@ export default class ClawdeExtension extends Extension {
       .filter(w => w && !w.minimized && w.get_window_type() === Meta.WindowType.NORMAL && w.located_on_workspace(ws));
     const terms = normal.filter(w => { const cls = (w.get_wm_class() || "").toLowerCase();
       return TERMINALS.some(t => cls.includes(t)); });
-    return terms.length ? terms : normal;
+    let out = terms.length ? terms : normal;
+    if (this._monitor >= 0) { const m = out.filter(w => w.get_monitor() === this._monitor); if (m.length) out = m; }
+    return out;
   }
 
   // split-pane geometry published by the Terminator plugin (relative rects + window size)
@@ -225,7 +237,7 @@ export default class ClawdeExtension extends Extension {
     const [ptrX, ptrY] = global.get_pointer();
     const dcx = this._x - ptrX, dcy = this._y - ptrY, dc = Math.hypot(dcx, dcy);
     if (dc < 90) {
-      const rr = this._roam(), d = dc || 1, sp = 9;
+      const rr = this._roam(), d = dc || 1, sp = 9 * (this._speedMul || 1);
       this._x = Math.min(Math.max(this._x + dcx / d * sp, rr.x + S / 2), rr.x + rr.w - S / 2);
       this._y = Math.min(Math.max(this._y + dcy / d * sp, rr.y + S / 2), rr.y + rr.h - S / 2);
       this._walkDist += sp; this._holdUntil = 0; this._moodUntil = 0;
@@ -247,7 +259,7 @@ export default class ClawdeExtension extends Extension {
     } else if (now >= this._holdUntil) {
       const dx = this._target.x - this._x, dy = this._target.y - this._y, dist = Math.hypot(dx, dy);
       if (dist < 4) { this._decide(now); }
-      else { const sp = this._gait === "scurry" ? SPEED * 1.6 : SPEED;
+      else { const sp = (this._gait === "scurry" ? SPEED * 1.6 : SPEED) * (this._speedMul || 1);
         this._x += dx / dist * sp; this._y += dy / dist * sp; this._walkDist += sp; walking = true; }
     }
 
@@ -282,6 +294,7 @@ export default class ClawdeExtension extends Extension {
   }
 
   disable() {
+    if (this._settings && this._settingsId) { this._settings.disconnect(this._settingsId); this._settingsId = 0; }
     for (const id of this._sources) GLib.source_remove(id);
     this._sources?.clear();
     for (const b of this._bubbles) b.destroy();

@@ -63,7 +63,7 @@
     hop:    [["010101010","010101010"],["000000000","010101010"]],
     stand:  [["010101010","010101010"]],
   };
-  const PX = 5, S = PX * 9;
+  const PX = 5; let S = PX * 9;
   const pick = a => a[Math.floor(Math.random() * a.length)];
   const rand = (a, b) => a + Math.random() * (b - a);
 
@@ -143,7 +143,12 @@
     holdUntil = now + (actKind === "sleep" ? 2800 : actKind === "look" ? 1000 : 1300);
   }
 
-  const SPEED = reduce ? 1.6 : 2.6;
+  let SPEED = reduce ? 1.6 : 2.6; const SPEED0 = SPEED, S0 = PX * 9;
+  if (window.clawde && window.clawde.onPrefs) window.clawde.onPrefs(p => {   // speed/size from the tray
+    SPEED = SPEED0 * (p.speed || 1);
+    S = Math.round(S0 * (p.size || 1));
+    sprite.style.width = S + "px"; sprite.style.height = S + "px";
+  });
   const FLEE_R = 120, FLEE_SPEED = reduce ? 5 : 9;       // run away from the cursor
   let mx = -9999, my = -9999;
   function chrome(tag) {                                  // keep emote + cloud pinned to Clawde every frame
