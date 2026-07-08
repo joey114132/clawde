@@ -148,6 +148,9 @@ with `vsce`. A Clawde wanders in a panel beside your code.
   That's *why* the "over everything" version has to be a Shell extension — a Wayland fact,
   not a missing feature.
 - VS Code sandboxes its extensions, so that Clawde politely stays in his panel.
+- **Terminator splits:** by default Clawde sees a split Terminator window as one space
+  (the compositor can't see inside it). Install the [Terminator plugin](terminator-plugin/)
+  and he'll wander + teleport between the individual **split panes** too.
 - The Windows/macOS desktop app isn't code-signed yet — first launch shows an
   "unknown publisher / unidentified developer" prompt. Choose *Run anyway* / *Open*.
 

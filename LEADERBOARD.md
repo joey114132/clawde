@@ -18,6 +18,7 @@ create table if not exists scores (
   id         bigint generated always as identity primary key,
   nick       text    not null check (char_length(nick) between 1 and 24),
   score      integer not null check (score >= 0),
+  country    text,                                    -- 2-letter code like 'KR' (auto-detected)
   created_at timestamptz default now()
 );
 
@@ -29,6 +30,11 @@ create policy "insert any" on scores for insert
 
 create index if not exists scores_score_idx on scores (score desc);
 ```
+
+> Already created the table before the country column existed? Just add it:
+> `alter table scores add column if not exists country text;`
+> The board auto-detects each visitor's country (via a free, key-less geo-IP lookup) and
+> shows a flag — no login or manual pick needed.
 
 ## 3. Paste your keys into the site
 

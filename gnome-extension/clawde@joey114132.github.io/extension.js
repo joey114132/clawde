@@ -110,20 +110,47 @@ export default class ClawdeExtension extends Extension {
     return terms.length ? terms : normal;
   }
 
+  // split-pane geometry published by the Terminator plugin (relative rects + window size)
+  _readPanes() {
+    const now = Date.now();
+    if (this._panesCache !== undefined && now - (this._panesAt || 0) < 1500) return this._panesCache;
+    try {
+      const path = GLib.build_filenamev([GLib.get_user_cache_dir(), "clawde", "panes.json"]);
+      const [ok, bytes] = GLib.file_get_contents(path);
+      this._panesCache = ok ? JSON.parse(new TextDecoder().decode(bytes)) : null;
+    } catch (_) { this._panesCache = null; }
+    this._panesAt = now;
+    return this._panesCache;
+  }
+
+  // absolute rects of a Terminator window's split panes, or null if not split / no data
+  _winPanes(win) {
+    if (!win || !(win.get_wm_class() || "").toLowerCase().includes("terminator")) return null;
+    const data = this._readPanes();
+    if (!data || !data.windows) return null;
+    const fr = win.get_frame_rect();
+    const g = data.windows.find(w => Math.abs(w.w - fr.width) < 160 && Math.abs(w.h - fr.height) < 220);
+    if (!g || !g.panes || g.panes.length < 2) return null;
+    return g.panes.map(p => ({ x: fr.x + p.x, y: fr.y + p.y, width: p.w, height: p.h }));
+  }
+
   _pickWindow() {
     const list = this._terminalWindows();
-    if (!list.length) { this._win = null; return; }
+    if (!list.length) { this._win = null; this._sub = null; return; }
     const others = this._win ? list.filter(w => w !== this._win) : list;
     this._win = pick(others.length ? others : list);
+    const panes = this._winPanes(this._win);
+    this._sub = panes ? pick(panes) : null;                 // wander one split pane, if the window is split
     const t = this._newTarget(); this._x = t.x; this._y = t.y;
   }
 
-  // inner region of the window: inside the content, below the titlebar/first lines
+  // inner region to wander: a split pane if we're in one, else the window content area
   _roam() {
-    if (!this._win) { const m = Main.layoutManager.primaryMonitor;
+    const r = this._sub || (this._win ? this._win.get_frame_rect() : null);
+    if (!r) { const m = Main.layoutManager.primaryMonitor;
       return { x: m.x + 40, y: m.y + 40, w: m.width - 80, h: m.height - 80 }; }
-    const r = this._win.get_frame_rect(), padX = 26, padTop = 46, padBot = 22;
-    return { x: r.x + padX, y: r.y + padTop, w: Math.max(20, r.width - 2 * padX), h: Math.max(20, r.height - padTop - padBot) };
+    const padX = this._sub ? 14 : 26, padTop = this._sub ? 20 : 46, padBot = this._sub ? 14 : 22;
+    return { x: r.x + padX, y: r.y + padTop, w: Math.max(16, r.width - 2 * padX), h: Math.max(16, r.height - padTop - padBot) };
   }
 
   _newTarget() {
@@ -159,7 +186,14 @@ export default class ClawdeExtension extends Extension {
   _setMood(m, ms) { this._mood = m; this._moodUntil = Date.now() + ms; }
 
   _teleport() {
-    this._pickWindow();
+    const panes = this._winPanes(this._win);
+    if (panes && panes.length > 1 && Math.random() < 0.6) {
+      let p; do { p = pick(panes); } while (p === this._sub && panes.length > 1);
+      this._sub = p;                                        // hop to another split pane, same window
+      const t = this._newTarget(); this._x = t.x; this._y = t.y;
+    } else {
+      this._pickWindow();                                  // hop to another window
+    }
     this._mood = "neutral"; this._moodUntil = 0; this._holdUntil = 0;
     this._target = this._newTarget(); this._newGait();
     this._tpAt = Date.now() + rand(TP_MIN, TP_MAX);
