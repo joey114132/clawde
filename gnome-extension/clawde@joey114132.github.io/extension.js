@@ -1,6 +1,6 @@
-// Clawde — a Claude Code mascot that patrols the edges of your terminal windows
-// and teleports between them. Runs inside GNOME Shell as a desktop overlay, so it
-// can see every window's position and float above them. Auto-starts with the session.
+// Clawde — a Claude Code mascot that wanders inside your terminal windows with moods,
+// a diverse gait, the odd dance and meme, and teleports between terminals. Runs inside
+// GNOME Shell (a desktop overlay), so it floats above every window and auto-starts at login.
 import St from 'gi://St';
 import Clutter from 'gi://Clutter';
 import GLib from 'gi://GLib';
@@ -8,176 +8,228 @@ import Meta from 'gi://Meta';
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
-// The pixel-art Clawde (1 = orange body, 2 = black eye, 0 = transparent).
-const MATRIX = [
-    '011000110',
-    '111111111',
-    '111111111',
-    '112211221',
-    '112211221',
-    '111111111',
-    '111111111',
-    '010101010',
-    '010101010',
-];
-const PX = 4;                    // device px per sprite pixel
-const ORANGE = [0.82, 0.46, 0.32];
-const EYE = [0.08, 0.08, 0.08];
+// palette as cairo rgb (0..1)
+const ORANGE = [0.82, 0.46, 0.32], E = [0.08, 0.08, 0.08], R = [0.88, 0.28, 0.36],
+      PK = [0.94, 0.49, 0.59], BL = [0.37, 0.69, 0.91], GOLD = [0.96, 0.77, 0.26];
+const BODY = ["011000110", "111111111", "111111111", "111111111",
+              "111111111", "111111111", "111111111", "000000000", "000000000"];
+// each mood = pixel edits over the plain body (eyes/brows/cheeks/mouth/tears) + an emote
+const EMO = {
+  neutral:  { px: [[3,2,E],[3,3,E],[4,2,E],[4,3,E],[3,5,E],[3,6,E],[4,5,E],[4,6,E]], tag: "" },
+  happy:    { px: [[3,2,E],[3,3,E],[3,5,E],[3,6,E],[6,3,E],[6,4,E],[6,5,E]], tag: "✨" },
+  love:     { px: [[3,2,R],[3,3,R],[4,2,R],[4,3,R],[3,5,R],[3,6,R],[4,5,R],[4,6,R],[5,1,PK],[5,7,PK],[6,4,E]], tag: "❤️" },
+  surprise: { px: [[3,2,E],[3,3,E],[4,2,E],[4,3,E],[3,5,E],[3,6,E],[4,5,E],[4,6,E],[6,4,E]], tag: "❗" },
+  sad:      { px: [[4,2,E],[4,3,E],[4,5,E],[4,6,E],[2,3,E],[2,5,E],[5,2,BL],[6,2,BL]], tag: "💧" },
+  angry:    { px: [[2,2,E],[3,3,E],[2,6,E],[3,5,E],[4,2,E],[4,3,E],[4,5,E],[4,6,E]], tag: "💢" },
+  sleepy:   { px: [[4,2,E],[4,3,E],[4,5,E],[4,6,E]], tag: "💤" },
+  dizzy:    { px: [[3,2,E],[4,3,E],[3,6,E],[4,5,E]], tag: "😵" },
+  curious:  { px: [[3,2,E],[3,3,E],[4,2,E],[4,3,E],[3,5,E],[3,6,E],[4,5,E],[4,6,E],[2,5,E]], tag: "❓" },
+  excited:  { px: [[3,2,GOLD],[3,3,GOLD],[4,2,GOLD],[4,3,GOLD],[3,5,GOLD],[3,6,GOLD],[4,5,GOLD],[4,6,GOLD],[6,3,E],[6,4,E],[6,5,E]], tag: "🤩" },
+  wink:     { px: [[4,2,E],[4,3,E],[3,5,E],[3,6,E],[4,5,E],[4,6,E],[6,4,E]], tag: "😉" },
+  laugh:    { px: [[3,2,E],[3,3,E],[3,5,E],[3,6,E],[5,4,E],[6,3,E],[6,4,E],[6,5,E]], tag: "😆" },
+  cool:     { px: [[3,2,E],[3,3,E],[3,4,E],[3,5,E],[3,6,E],[4,2,E],[4,3,E],[4,4,E],[4,5,E],[4,6,E]], tag: "😎" },
+  deadpan:  { px: [[4,2,E],[4,3,E],[4,5,E],[4,6,E]], tag: "🗿" },
+  dead:     { px: [[3,2,E],[4,3,E],[3,6,E],[4,5,E]], tag: "💀" },
+  sus:      { px: [[4,3,E],[4,6,E],[2,6,E]], tag: "👀" },
+};
+const FLAVORS = ["cool", "wink", "laugh", "curious", "happy"];
+const MEMES = ["yeet!", "stonks 📈", "such wow", "gg", "this is fine", "no thoughts",
+  "404: nap not found", "sudo pet me", "it works?!", "vibing~", "💀💀💀", "rm -rf feelings"];
+const DANCE_FACES = ["happy", "excited", "cool", "laugh"];
+const HELLOS = ["hi! ◕ᴥ◕", "coding? ☕", "boop!", "keep going!", "wheee!", "found me!", "✨"];
+const LEG = {
+  walk:   [["010101010","010101010"],["010101010","000101010"],["010101010","010001010"],
+           ["010101010","010100010"],["010101010","010101000"]],
+  scurry: [["010101010","000100010"],["010101010","010001000"],["010101010","000101000"],["010101010","010000010"]],
+  hop:    [["010101010","010101010"],["000000000","010101010"]],
+  stand:  [["010101010","010101010"]],
+};
+const TERMINALS = ["terminal", "terminator", "ghostty", "kitty", "alacritty",
+  "konsole", "xterm", "wezterm", "foot", "tilix", "rio", "contour"];
 
-// wm_class substrings that identify a terminal window
-const TERMINALS = ['terminal', 'terminator', 'ghostty', 'kitty', 'alacritty',
-    'konsole', 'xterm', 'wezterm', 'foot', 'tilix', 'rio', 'contour'];
-const HELLOS = ['hi! ◕ᴥ◕', 'coding? ☕', 'boop!', 'keep going!', 'wheee!', 'found me!', '✨'];
+const PX = 3, S = PX * 9;              // sprite pixel size, 27px
+const TICK_MS = 80, SPEED = 5;
+const TP_MIN = 6000, TP_MAX = 13000, BUBBLE_MS = 1800;
+const pick = a => a[Math.floor(Math.random() * a.length)];
+const rand = (a, b) => a + Math.random() * (b - a);
 
-const TICK_MS = 60;
-const WALK_SPEED = 6;            // px along the window perimeter per tick
-const TELEPORT_MIN_MS = 6000;
-const TELEPORT_MAX_MS = 14000;
-const BUBBLE_MS = 1800;
+function buildGrid(mood, legRows) {
+  const g = BODY.map(row => [...row].map(ch => ch === "1" ? ORANGE : null));
+  if (legRows) for (let i = 0; i < 2; i++) for (let c = 0; c < 9; c++)
+    if (legRows[i][c] === "1") g[7 + i][c] = ORANGE;
+  for (const [r, c, col] of EMO[mood].px) g[r][c] = col;
+  return g;
+}
 
 export default class ClawdeExtension extends Extension {
-    enable() {
-        this._sources = new Set();
-        this._bubbles = new Set();
-        this._win = null;
-        this._d = 0;
+  enable() {
+    this._sources = new Set();
+    this._bubbles = new Set();
+    this._grid = buildGrid("neutral", LEG.stand[0]);
+    this._mood = "neutral"; this._moodUntil = 0;
+    this._holdUntil = 0; this._actKind = null;
+    this._gait = "walk"; this._walkDist = 0;
+    this._bubbleUntil = 0; this._win = null;
 
-        const cols = MATRIX[0].length, rows = MATRIX.length;
-        this._sw = cols * PX;
-        this._sh = rows * PX;
-        this._sprite = new St.DrawingArea({width: this._sw, height: this._sh, reactive: true});
-        this._sprite.connect('repaint', (area) => this._paint(area));
-        this._clickId = this._sprite.connect('button-press-event', () => {
-            this._interact();
-            return Clutter.EVENT_STOP;
-        });
-        Main.layoutManager.uiGroup.add_child(this._sprite);
+    this._sprite = new St.DrawingArea({ width: S, height: S, reactive: true });
+    this._sprite.connect("repaint", area => this._paint(area));
+    this._clickId = this._sprite.connect("button-press-event", () => { this._poke(); return Clutter.EVENT_STOP; });
+    Main.layoutManager.uiGroup.add_child(this._sprite);
 
-        this._pickWindow();
-        this._ttl = this._rand(TELEPORT_MIN_MS, TELEPORT_MAX_MS);
-        const id = GLib.timeout_add(GLib.PRIORITY_DEFAULT, TICK_MS, () => {
-            this._tick();
-            return GLib.SOURCE_CONTINUE;
-        });
-        this._sources.add(id);
+    this._emote = new St.Label({ text: "", style: "font-size: 14px;", reactive: false });
+    this._emote.opacity = 0;
+    Main.layoutManager.uiGroup.add_child(this._emote);
+
+    this._pickWindow();
+    const m = Main.layoutManager.primaryMonitor;
+    if (!this._win) { this._x = m.x + m.width / 2; this._y = m.y + m.height / 2; }
+    this._target = this._newTarget();
+    this._tpAt = Date.now() + rand(TP_MIN, TP_MAX);
+
+    const id = GLib.timeout_add(GLib.PRIORITY_DEFAULT, TICK_MS, () => { this._tick(); return GLib.SOURCE_CONTINUE; });
+    this._sources.add(id);
+  }
+
+  _paint(area) {
+    const cr = area.get_context();
+    const g = this._grid;
+    if (g) for (let r = 0; r < 9; r++) for (let c = 0; c < 9; c++) {
+      const col = g[r][c]; if (!col) continue;
+      cr.setSourceRGBA(col[0], col[1], col[2], 1);
+      cr.rectangle(c * PX, r * PX, PX, PX); cr.fill();
+    }
+    cr.$dispose();
+  }
+
+  _terminalWindows() {
+    const ws = global.workspace_manager.get_active_workspace();
+    const normal = global.get_window_actors().map(a => a.meta_window)
+      .filter(w => w && !w.minimized && w.get_window_type() === Meta.WindowType.NORMAL && w.located_on_workspace(ws));
+    const terms = normal.filter(w => { const cls = (w.get_wm_class() || "").toLowerCase();
+      return TERMINALS.some(t => cls.includes(t)); });
+    return terms.length ? terms : normal;
+  }
+
+  _pickWindow() {
+    const list = this._terminalWindows();
+    if (!list.length) { this._win = null; return; }
+    const others = this._win ? list.filter(w => w !== this._win) : list;
+    this._win = pick(others.length ? others : list);
+    const t = this._newTarget(); this._x = t.x; this._y = t.y;
+  }
+
+  // inner region of the window: inside the content, below the titlebar/first lines
+  _roam() {
+    if (!this._win) { const m = Main.layoutManager.primaryMonitor;
+      return { x: m.x + 40, y: m.y + 40, w: m.width - 80, h: m.height - 80 }; }
+    const r = this._win.get_frame_rect(), padX = 26, padTop = 46, padBot = 22;
+    return { x: r.x + padX, y: r.y + padTop, w: Math.max(20, r.width - 2 * padX), h: Math.max(20, r.height - padTop - padBot) };
+  }
+
+  _newTarget() {
+    const rr = this._roam(), m = S / 2;
+    return { x: rr.x + m + Math.random() * Math.max(1, rr.w - 2 * m),
+             y: rr.y + m + Math.random() * Math.max(1, rr.h - 2 * m) };
+  }
+
+  _say(text) {
+    const b = new St.Label({ text,
+      style: "background-color:#fff; color:#16202b; border-radius:11px; padding:3px 8px; font-size:11px; font-weight:600;",
+      reactive: false });
+    Main.layoutManager.uiGroup.add_child(b);
+    this._bubbles.add(b);
+    let id; id = GLib.timeout_add(GLib.PRIORITY_DEFAULT, BUBBLE_MS, () => {
+      this._bubbles.delete(b); b.destroy(); this._sources.delete(id); return GLib.SOURCE_REMOVE; });
+    this._sources.add(id);
+    return b;
+  }
+
+  _startDance() { this._actKind = "dance"; this._holdUntil = Date.now() + 2400; }
+
+  _poke() {
+    const now = Date.now();
+    const wasAsleep = now < this._holdUntil && this._actKind === "sleep";
+    this._holdUntil = 0;
+    if (wasAsleep) { this._setMood("surprise", 700); this._say("!!"); }
+    else if (Math.random() < 0.18) { this._setMood("love", 1300); this._say("♥"); }
+    else { this._setMood("happy", 900); this._say(pick(HELLOS)); }
+    if (Math.random() < 0.45) this._teleport();
+  }
+
+  _setMood(m, ms) { this._mood = m; this._moodUntil = Date.now() + ms; }
+
+  _teleport() {
+    this._pickWindow();
+    this._mood = "neutral"; this._moodUntil = 0; this._holdUntil = 0;
+    this._target = this._newTarget(); this._newGait();
+    this._tpAt = Date.now() + rand(TP_MIN, TP_MAX);
+  }
+
+  _newGait() { this._gait = pick(["walk", "walk", "walk", "scurry", "hop"]); }
+
+  _decide(now) {
+    if (Math.random() < 0.42) { this._target = this._newTarget(); this._newGait(); return; }
+    const r = Math.random();
+    if (r < 0.12) { this._startDance(); return; }
+    if (r < 0.24) { this._setMood(pick(["deadpan", "dead", "sus", "cool"]), 1100); this._say(pick(MEMES)); this._actKind = "look"; this._holdUntil = now + 1200; return; }
+    if (r < 0.36) { this._setMood("surprise", 550); this._actKind = "look"; this._holdUntil = now + 750; return; }
+    if (r < 0.50) { this._setMood(pick(FLAVORS), 900); this._actKind = "look"; this._holdUntil = now + 950; return; }
+    this._actKind = r < 0.72 ? "look" : r < 0.88 ? "sit" : "sleep";
+    this._holdUntil = now + (this._actKind === "sleep" ? 2800 : this._actKind === "look" ? 1000 : 1300);
+  }
+
+  _tick() {
+    const now = Date.now();
+    if (now >= this._tpAt) { this._teleport(); return; }
+    if (!this._win || this._win.minimized) { this._pickWindow(); if (!this._win) { this._sprite.hide(); return; } }
+    this._sprite.show();
+
+    const dancing = now < this._holdUntil && this._actKind === "dance";
+    let walking = false, swayX = 0;
+    if (dancing) {
+      swayX = Math.round(Math.sin(now / 110) * 7);
+    } else if (now >= this._holdUntil) {
+      const dx = this._target.x - this._x, dy = this._target.y - this._y, dist = Math.hypot(dx, dy);
+      if (dist < 4) { this._decide(now); }
+      else { const sp = this._gait === "scurry" ? SPEED * 1.6 : SPEED;
+        this._x += dx / dist * sp; this._y += dy / dist * sp; this._walkDist += sp; walking = true; }
     }
 
-    _rand(a, b) { return a + Math.floor(Math.random() * (b - a)); }
-
-    _paint(area) {
-        const cr = area.get_context();
-        const cols = MATRIX[0].length, rows = MATRIX.length;
-        for (let r = 0; r < rows; r++) {
-            for (let c = 0; c < cols; c++) {
-                const ch = MATRIX[r][c];
-                if (ch === '0') continue;
-                const col = ch === '2' ? EYE : ORANGE;
-                cr.setSourceRGBA(col[0], col[1], col[2], 1);
-                cr.rectangle(c * PX, r * PX, PX, PX);
-                cr.fill();
-            }
-        }
-        cr.$dispose();
+    // expression + legs
+    let expr, legRows, tag, bob = 0;
+    if (dancing) {
+      expr = DANCE_FACES[Math.floor(now / 260) % DANCE_FACES.length];
+      legRows = LEG.scurry[Math.floor(now / 90) % LEG.scurry.length];
+      bob = -Math.round(Math.abs(Math.sin(now / 110)) * 5); tag = "🎵";
+    } else {
+      expr = now < this._moodUntil ? this._mood
+        : now < this._holdUntil ? (this._actKind === "sleep" ? "sleepy" : this._actKind === "sit" ? "happy" : "curious")
+        : walking && Math.floor(now / 900) % 4 === 0 ? "happy" : "neutral";
+      const sitting = now < this._holdUntil && (this._actKind === "sit" || this._actKind === "sleep");
+      const seq = LEG[this._gait];
+      legRows = sitting ? null : (walking ? seq[Math.floor(this._walkDist / 7) % seq.length] : LEG.stand[0]);
+      bob = walking && Math.floor(this._walkDist / 7) % 2 ? (this._gait === "hop" ? -4 : -2) : 0;
+      tag = EMO[expr].tag;
     }
 
-    // terminal windows on the active workspace, visible
-    _terminalWindows() {
-        const ws = global.workspace_manager.get_active_workspace();
-        const normal = global.get_window_actors()
-            .map(a => a.meta_window)
-            .filter(w => w && !w.minimized &&
-                w.get_window_type() === Meta.WindowType.NORMAL &&
-                w.located_on_workspace(ws));
-        const terms = normal.filter(w => {
-            const cls = (w.get_wm_class() || '').toLowerCase();
-            return TERMINALS.some(t => cls.includes(t));
-        });
-        return terms.length ? terms : normal;   // fall back to any window if no terminal found
-    }
+    this._grid = buildGrid(expr, legRows);
+    this._sprite.queue_repaint();
+    const px = Math.round(this._x - S / 2 + swayX), py = Math.round(this._y - S / 2 + bob);
+    this._sprite.set_position(px, py);
 
-    _pickWindow() {
-        const list = this._terminalWindows();
-        if (!list.length) { this._win = null; return; }
-        const others = this._win ? list.filter(w => w !== this._win) : list;
-        const pool = others.length ? others : list;
-        this._win = pool[Math.floor(Math.random() * pool.length)];
-        const r = this._win.get_frame_rect();
-        this._d = Math.random() * (2 * (r.width + r.height));   // random spot on its border
-    }
+    if (tag) { if (this._emote.text !== tag) this._emote.set_text(tag);
+      this._emote.opacity = 255; this._emote.set_position(px + 4, py - 16); }
+    else this._emote.opacity = 0;
+    for (const b of this._bubbles) b.set_position(px - 8, py - 34);
+  }
 
-    // map perimeter distance d to a point on the window's edge, sprite centered on it
-    _pointAt(r, d) {
-        const P = 2 * (r.width + r.height);
-        d = ((d % P) + P) % P;
-        let x, y;
-        if (d < r.width) { x = r.x + d; y = r.y; }
-        else if (d < r.width + r.height) { x = r.x + r.width; y = r.y + (d - r.width); }
-        else if (d < 2 * r.width + r.height) { x = r.x + r.width - (d - r.width - r.height); y = r.y + r.height; }
-        else { x = r.x; y = r.y + r.height - (d - 2 * r.width - r.height); }
-        return [Math.round(x - this._sw / 2), Math.round(y - this._sh / 2)];
-    }
-
-    _tick() {
-        this._ttl -= TICK_MS;
-        if (this._ttl <= 0) {                 // time to teleport to another terminal
-            this._pickWindow();
-            this._ttl = this._rand(TELEPORT_MIN_MS, TELEPORT_MAX_MS);
-        }
-        if (!this._win || this._win.minimized) { this._pickWindow(); }
-        if (!this._win) { this._sprite.hide(); return; }
-
-        this._sprite.show();
-        const r = this._win.get_frame_rect();
-        this._d += WALK_SPEED;
-        const [px, py] = this._pointAt(r, this._d);
-        this._sprite.set_position(px, py);
-        for (const b of this._bubbles)
-            b.set_position(px, Math.max(0, py - 22));
-    }
-
-    _interact() {
-        this._say(HELLOS[Math.floor(Math.random() * HELLOS.length)]);
-        if (Math.random() < 0.5) {            // poke → run off to another terminal
-            this._pickWindow();
-            this._ttl = this._rand(TELEPORT_MIN_MS, TELEPORT_MAX_MS);
-        }
-    }
-
-    _say(text) {
-        const bubble = new St.Label({
-            text,
-            style: 'background-color: rgba(20,20,20,0.9); color: #fff; ' +
-                   'border-radius: 10px; padding: 3px 8px; font-size: 12px;',
-            reactive: false,
-        });
-        Main.layoutManager.uiGroup.add_child(bubble);
-        const [x, y] = this._sprite.get_position();
-        bubble.set_position(x, Math.max(0, y - 22));
-        this._bubbles.add(bubble);
-        let id;
-        id = GLib.timeout_add(GLib.PRIORITY_DEFAULT, BUBBLE_MS, () => {
-            this._bubbles.delete(bubble);
-            bubble.destroy();
-            this._sources.delete(id);
-            return GLib.SOURCE_REMOVE;
-        });
-        this._sources.add(id);
-    }
-
-    disable() {
-        for (const id of this._sources)
-            GLib.source_remove(id);
-        this._sources?.clear();
-        for (const b of this._bubbles)
-            b.destroy();
-        this._bubbles?.clear();
-        if (this._sprite) {
-            if (this._clickId)
-                this._sprite.disconnect(this._clickId);
-            this._sprite.destroy();
-        }
-        this._sprite = null;
-        this._clickId = null;
-        this._win = null;
-    }
+  disable() {
+    for (const id of this._sources) GLib.source_remove(id);
+    this._sources?.clear();
+    for (const b of this._bubbles) b.destroy();
+    this._bubbles?.clear();
+    if (this._sprite) { if (this._clickId) this._sprite.disconnect(this._clickId); this._sprite.destroy(); }
+    this._emote?.destroy();
+    this._sprite = null; this._emote = null; this._clickId = null; this._win = null; this._grid = null;
+  }
 }

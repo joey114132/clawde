@@ -5,12 +5,12 @@ above every window — all your terminals and their tabs, Terminator splits, Gho
 VS Code, the top panel — across every workspace.
 
 **This is the plugin:** once enabled it starts automatically with your GNOME session —
-nothing to run. Clawde is a **pixel sprite** that **walks around the edge of a terminal
-window**, and every few seconds **teleports to another terminal window** (it finds them
-by window class: gnome-terminal, Terminator, Ghostty, kitty, alacritty, …; if none are
-open it patrols any window). **Click Clawde** and it greets you with a speech bubble and
-often darts off to a different terminal to play. Only the sprite catches clicks;
-everything else passes straight through.
+nothing to run. Clawde is a **pixel sprite** that **wanders inside a terminal window**
+(in the blank margin below your code), with **moods & expressions**, a diverse shuffling
+gait, and the occasional **dance** or **meme**, then **teleports to another terminal**
+every few seconds (found by window class: gnome-terminal, Terminator, Ghostty, kitty, …;
+any window if no terminal is open). **Click Clawde** to greet him. Only the sprite
+catches clicks; everything else passes straight through.
 
 This is the only approach that can roam across separate terminals/tabs on
 **GNOME Wayland**: a terminal program is trapped in its own pseudo-terminal, and
@@ -47,12 +47,13 @@ Extensions app for the error.
 
 ## How it works
 
-`extension.js` draws the pixel sprite with an `St.DrawingArea` (Cairo fills the
-orange/black matrix) added to `Main.layoutManager.uiGroup`, the chrome layer above app
-windows. A `GLib` timeout walks it along the target window's perimeter (`get_frame_rect()`
-mapped to a point on the border), and a countdown teleports it to another terminal
-window (`global.get_window_actors()` filtered by `wm_class`). `disable()` removes every
-timeout, destroys the sprite and any speech bubbles — no leaks.
+`extension.js` draws the pixel sprite with an `St.DrawingArea` (Cairo fills a per-mood
+pixel matrix — eyes, brows, cheeks, mouth) added to `Main.layoutManager.uiGroup`, the
+chrome layer above app windows. A `GLib` timeout wanders it inside the target window's
+inner rect (`get_frame_rect()` inset below the titlebar), cycling gaits, moods, small
+actions and the odd dance; a countdown teleports it to another terminal
+(`get_window_actors()` filtered by `wm_class`). `disable()` removes every timeout and
+destroys the sprite, emote and bubbles — no leaks.
 
 ## Roadmap
 
