@@ -218,6 +218,24 @@ export default class ClawdeExtension extends Extension {
     if (!this._win || this._win.minimized) { this._pickWindow(); if (!this._win) { this._sprite.hide(); return; } }
     this._sprite.show();
 
+    // oneko-style: bolt away from the cursor when it gets close
+    const [ptrX, ptrY] = global.get_pointer();
+    const dcx = this._x - ptrX, dcy = this._y - ptrY, dc = Math.hypot(dcx, dcy);
+    if (dc < 90) {
+      const rr = this._roam(), d = dc || 1, sp = 9;
+      this._x = Math.min(Math.max(this._x + dcx / d * sp, rr.x + S / 2), rr.x + rr.w - S / 2);
+      this._y = Math.min(Math.max(this._y + dcy / d * sp, rr.y + S / 2), rr.y + rr.h - S / 2);
+      this._walkDist += sp; this._holdUntil = 0; this._moodUntil = 0;
+      this._grid = buildGrid("scared", LEG.scurry[Math.floor(this._walkDist / 5) % LEG.scurry.length]);
+      this._sprite.queue_repaint();
+      const fx = Math.round(this._x - S / 2), fy = Math.round(this._y - S / 2);
+      this._sprite.set_position(fx + Math.round(Math.sin(now / 40) * 2), fy);
+      if (this._emote.text !== "😱") this._emote.set_text("😱");
+      this._emote.opacity = 255; this._emote.set_position(fx + 4, fy - 16);
+      this._target = this._newTarget();
+      return;
+    }
+
     const dancing = now < this._holdUntil && this._actKind === "dance";
     let walking = false, swayX = 0;
     if (dancing) {

@@ -367,12 +367,36 @@ $ gnome-extensions enable <span class="d">\</span>
 
   // ---------- main loop ----------
   const SPEED = reduce ? 1.4 : 2.3;
+  const FLEE_R = 95, FLEE_SPEED = reduce ? 4 : 7;         // run away from the cursor
+  let mx = -9999, my = -9999;
+  addEventListener("mousemove", e => { mx = e.clientX; my = e.clientY; });
+  addEventListener("mouseleave", () => { mx = my = -9999; });
   function frame(now) {
     requestAnimationFrame(frame);
     if (combo > 0 && now > comboUntil) { combo = 0; hud(); meter.style.opacity = "0"; }
     if (combo >= 2) mBar.style.width = Math.max(0, (comboUntil - now) / COMBO_MS * 100) + "%";
     if (busy) return;
     if (now >= tpAt) { teleport(); return; }
+
+    // oneko-style: bolt away when the cursor gets close
+    if (mx > -9000) {
+      const rect = stage.getBoundingClientRect();
+      const ix = (mx - rect.left) / (rect.width / 900), iy = (my - rect.top) / (rect.height / 520);
+      const dc = Math.hypot(x - ix, y - iy);
+      if (dc < FLEE_R && ix > -40 && ix < 940 && iy > -40 && iy < 560) {
+        const rr = roam(WINS[wi]), d = dc || 1;
+        x = Math.min(Math.max(x + (x - ix) / d * FLEE_SPEED, rr.x + SW / 2), rr.x + rr.w - SW / 2);
+        y = Math.min(Math.max(y + (y - iy) / d * FLEE_SPEED, rr.y + SH / 2), rr.y + rr.h - SH / 2);
+        walkDist += FLEE_SPEED; target = newTarget(rr); holdUntil = 0; moodUntil = 0;
+        draw(grid("scared", LEG.scurry[Math.floor(walkDist / 5) % LEG.scurry.length]));
+        sprite.style.transform = "translateX(" + Math.round(Math.sin(now / 40) * 2) + "px)";
+        place();
+        emote.textContent = "😱"; emote.style.opacity = "1";
+        emote.style.left = (x - 5) + "px"; emote.style.top = (y - SH / 2 - 20) + "px";
+        bubble.style.opacity = "0"; bubbleUntil = 0;
+        return;
+      }
+    }
 
     let walking = false;
     if (now >= holdUntil) {

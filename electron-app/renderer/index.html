@@ -141,10 +141,30 @@
   }
 
   const SPEED = reduce ? 1.6 : 2.6;
+  const FLEE_R = 120, FLEE_SPEED = reduce ? 5 : 9;       // run away from the cursor
+  let mx = -9999, my = -9999;
   function frame(now) {
     requestAnimationFrame(frame);
     if (busy) return;
     if (now >= tpAt) { teleport(); return; }
+
+    // oneko-style: bolt away from the cursor
+    if (mx > -9000) {
+      const dcx = x - mx, dcy = y - my, dc = Math.hypot(dcx, dcy);
+      if (dc < FLEE_R) {
+        const rr = roam(), d = dc || 1;
+        x = Math.min(Math.max(x + dcx / d * FLEE_SPEED, rr.x + S / 2), rr.x + rr.w - S / 2);
+        y = Math.min(Math.max(y + dcy / d * FLEE_SPEED, rr.y + S / 2), rr.y + rr.h - S / 2);
+        walkDist += FLEE_SPEED; target = newTarget(); holdUntil = 0; moodUntil = 0;
+        draw(grid("scared", LEG.scurry[Math.floor(walkDist / 5) % LEG.scurry.length]));
+        sprite.style.transform = "translateX(" + Math.round(Math.sin(now / 40) * 2) + "px)";
+        place();
+        emote.textContent = "😱"; emote.style.opacity = "1";
+        emote.style.left = (x - 5) + "px"; emote.style.top = (y - S / 2 - 20) + "px";
+        bubble.style.opacity = "0"; bubbleUntil = 0;
+        return;
+      }
+    }
 
     const dancing = now < holdUntil && actKind === "dance";
     let walking = false, sway = 0;
@@ -195,6 +215,7 @@
   // ---- click-through toggle: only Clawde catches the mouse ----
   let over = false;
   addEventListener("mousemove", (e) => {
+    mx = e.clientX; my = e.clientY;
     const pad = 6;
     const isOver = e.clientX >= x - S / 2 - pad && e.clientX <= x + S / 2 + pad &&
                    e.clientY >= y - S / 2 - pad && e.clientY <= y + S / 2 + pad;
