@@ -25,17 +25,19 @@ He is not useful. That is entirely the point — he's just here to keep you comp
 - 💀 **memes** — "this is fine", "stonks 📈", "404: nap not found"
 - 👆 **reacts** when you poke him — gently, or... rather less gently
 
-## three ways to run him
+## ways to run him
 
 | where | runs on | what he does |
 |---|---|---|
-| 🖥️ **GNOME Shell** — [`gnome-extension/`](gnome-extension/) | Linux · GNOME | roams over **every** terminal, tab, and app across your whole desktop — the full experience |
-| 🐍 **Terminal** — [`clawde.py`](clawde.py) | **Windows · macOS · Linux** | a pure-Python Clawde in one terminal pane, zero deps, any shell |
-| 🧩 **VS Code** — [`vscode-extension/`](vscode-extension/) | **Windows · macOS · Linux** | Clawde in a little panel beside your code |
+| 🖥️ **GNOME Shell** — [`gnome-extension/`](gnome-extension/) | Linux · GNOME | roams over **every** terminal, tab, and app across your whole desktop |
+| 💻 **Desktop app** — [`electron-app/`](electron-app/) | **Windows · macOS** · Linux | the same "over everything" pet for Win/Mac — wanders your whole screen, **auto-starts at login** |
+| 🐍 **Terminal** — [`clawde.py`](clawde.py) | Windows · macOS · Linux | a pure-Python Clawde in one terminal pane, zero deps, any shell |
+| 🧩 **VS Code** — [`vscode-extension/`](vscode-extension/) | Windows · macOS · Linux | Clawde in a little panel beside your code |
 
-> **The GNOME extension is the real one.** It runs inside the compositor, so Clawde can
-> float over all your windows at once and hop between them. On GNOME Wayland it's the
-> *only* way to do that — a terminal program is trapped inside its own pane.
+> **Want him roaming over *everything*?** On Linux that's the **GNOME extension** (runs
+> inside the compositor). On **Windows / macOS** it's the **desktop app** — download the
+> installer, run it once, and Clawde auto-appears at every login. Same pet, different
+> wrapper, because Win/Mac have no shell-extension model.
 
 ## install — GNOME 🖥️
 

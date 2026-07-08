@@ -1,0 +1,205 @@
+<!-- Clawde 데스크톱 오버레이 렌더러 — 투명한 전체 화면 위를 돌아다니는 마스코트 -->
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: transparent; cursor: default; }
+  #clawde { position: fixed; z-index: 10; width: 45px; height: 45px; image-rendering: pixelated;
+    transform-origin: center; filter: drop-shadow(0 3px 6px rgba(0,0,0,.45)); }
+  .portal { position: fixed; z-index: 8; width: 54px; height: 30px; border-radius: 50%;
+    pointer-events: none; opacity: 0;
+    background: radial-gradient(closest-side, rgba(255,225,190,.95), #e8975f 58%, #c2683f 76%, transparent 84%);
+    box-shadow: 0 0 22px 6px rgba(217,138,99,.55); }
+  #emote { position: fixed; z-index: 11; font-size: 20px; pointer-events: none; opacity: 0;
+    transition: opacity .12s; filter: drop-shadow(0 1px 2px rgba(0,0,0,.5)); }
+  #bubble { position: fixed; z-index: 12; background: #fff; color: #16202b;
+    font: 600 13px system-ui, sans-serif; padding: 4px 10px; border-radius: 13px;
+    white-space: nowrap; opacity: 0; transition: opacity .12s; pointer-events: none;
+    box-shadow: 0 4px 12px rgba(0,0,0,.3); }
+  #bubble::before { content: ""; position: absolute; z-index: -1; left: 10px; right: 10px; top: -4px;
+    height: 11px; background: #fff; border-radius: 50%;
+    box-shadow: 18px 3px 0 -3px #fff, -18px 3px 0 -3px #fff, 36px 1px 0 -5px #fff, -36px 1px 0 -5px #fff; }
+  #bubble::after { content: ""; position: absolute; left: 9px; bottom: -8px; width: 8px; height: 8px;
+    background: #fff; border-radius: 50%; box-shadow: -5px 7px 0 -2px #fff; }
+</style>
+</head>
+<body>
+  <canvas id="clawde" width="45" height="45"></canvas>
+  <div id="emote"></div>
+  <div id="bubble"></div>
+<script>
+  const ORANGE = "#d17552", E = "#141414", R = "#e0475b", PK = "#ef7d97", BL = "#5fb0e8", GOLD = "#f5c542";
+  const BODY = ["011000110","111111111","111111111","111111111","111111111","111111111","111111111","000000000","000000000"];
+  const EMO = {
+    neutral:  { px: [[3,2,E],[3,3,E],[4,2,E],[4,3,E],[3,5,E],[3,6,E],[4,5,E],[4,6,E]], tag: "" },
+    happy:    { px: [[3,2,E],[3,3,E],[3,5,E],[3,6,E],[6,3,E],[6,4,E],[6,5,E]], tag: "✨" },
+    love:     { px: [[3,2,R],[3,3,R],[4,2,R],[4,3,R],[3,5,R],[3,6,R],[4,5,R],[4,6,R],[5,1,PK],[5,7,PK],[6,4,E]], tag: "❤️" },
+    surprise: { px: [[3,2,E],[3,3,E],[4,2,E],[4,3,E],[3,5,E],[3,6,E],[4,5,E],[4,6,E],[6,4,E]], tag: "❗" },
+    sad:      { px: [[4,2,E],[4,3,E],[4,5,E],[4,6,E],[2,3,E],[2,5,E],[5,2,BL],[6,2,BL]], tag: "💧" },
+    angry:    { px: [[2,2,E],[3,3,E],[2,6,E],[3,5,E],[4,2,E],[4,3,E],[4,5,E],[4,6,E]], tag: "💢", shake: 1 },
+    sleepy:   { px: [[4,2,E],[4,3,E],[4,5,E],[4,6,E]], tag: "💤" },
+    dizzy:    { px: [[3,2,E],[4,3,E],[3,6,E],[4,5,E]], tag: "😵", shake: 1 },
+    curious:  { px: [[3,2,E],[3,3,E],[4,2,E],[4,3,E],[3,5,E],[3,6,E],[4,5,E],[4,6,E],[2,5,E]], tag: "❓" },
+    excited:  { px: [[3,2,GOLD],[3,3,GOLD],[4,2,GOLD],[4,3,GOLD],[3,5,GOLD],[3,6,GOLD],[4,5,GOLD],[4,6,GOLD],[6,3,E],[6,4,E],[6,5,E]], tag: "🤩" },
+    wink:     { px: [[4,2,E],[4,3,E],[3,5,E],[3,6,E],[4,5,E],[4,6,E],[6,4,E]], tag: "😉" },
+    laugh:    { px: [[3,2,E],[3,3,E],[3,5,E],[3,6,E],[5,4,E],[6,3,E],[6,4,E],[6,5,E]], tag: "😆" },
+    cool:     { px: [[3,2,E],[3,3,E],[3,4,E],[3,5,E],[3,6,E],[4,2,E],[4,3,E],[4,4,E],[4,5,E],[4,6,E]], tag: "😎" },
+    deadpan:  { px: [[4,2,E],[4,3,E],[4,5,E],[4,6,E]], tag: "🗿" },
+    dead:     { px: [[3,2,E],[4,3,E],[3,6,E],[4,5,E]], tag: "💀" },
+    sus:      { px: [[4,3,E],[4,6,E],[2,6,E]], tag: "👀" },
+  };
+  const FLAVORS = ["cool", "wink", "laugh", "curious", "happy"];
+  const MEMES = ["yeet!", "stonks 📈", "such wow", "gg", "this is fine", "no thoughts",
+    "404: nap not found", "sudo pet me", "it works?!", "vibing~", "💀💀💀", "rm -rf feelings"];
+  const DANCE_FACES = ["happy", "excited", "cool", "laugh"];
+  const HELLOS = ["hi! ◕ᴥ◕", "coding? ☕", "boop!", "keep going!", "wheee!", "found me!", "✨"];
+  const LEG = {
+    walk:   [["010101010","010101010"],["010101010","000101010"],["010101010","010001010"],["010101010","010100010"],["010101010","010101000"]],
+    scurry: [["010101010","000100010"],["010101010","010001000"],["010101010","000101000"],["010101010","010000010"]],
+    hop:    [["010101010","010101010"],["000000000","010101010"]],
+    stand:  [["010101010","010101010"]],
+  };
+  const PX = 5, S = PX * 9;
+  const pick = a => a[Math.floor(Math.random() * a.length)];
+  const rand = (a, b) => a + Math.random() * (b - a);
+
+  function grid(mood, legRows) {
+    const g = BODY.map(row => [...row].map(ch => ch === "1" ? ORANGE : null));
+    if (legRows) for (let i = 0; i < 2; i++) for (let c = 0; c < 9; c++)
+      if (legRows[i][c] === "1") g[7 + i][c] = ORANGE;
+    for (const [r, c, col] of EMO[mood].px) g[r][c] = col;
+    return g;
+  }
+  const sprite = document.getElementById("clawde"), ctx = sprite.getContext("2d");
+  function draw(g) {
+    ctx.clearRect(0, 0, S, S);
+    for (let r = 0; r < 9; r++) for (let c = 0; c < 9; c++) {
+      if (!g[r][c]) continue; ctx.fillStyle = g[r][c]; ctx.fillRect(c * PX, r * PX, PX, PX);
+    }
+  }
+  const emote = document.getElementById("emote"), bubble = document.getElementById("bubble");
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  const roam = () => ({ x: 30, y: 30, w: Math.max(20, innerWidth - 60), h: Math.max(20, innerHeight - 60) });
+  const newTarget = () => { const rr = roam(), m = S / 2;
+    return { x: rr.x + m + Math.random() * Math.max(1, rr.w - 2 * m), y: rr.y + m + Math.random() * Math.max(1, rr.h - 2 * m) }; };
+
+  let t0 = newTarget();
+  let x = t0.x, y = t0.y, target = newTarget(), busy = false, bubbleUntil = 0, bubbleH = 24;
+  let holdUntil = 0, actKind = null, mood = "neutral", moodUntil = 0, hopStart = -1e9;
+  let gait = "walk", walkDist = 0, tpAt = performance.now() + rand(6000, 12000);
+
+  const place = () => { sprite.style.left = (x - S / 2) + "px"; sprite.style.top = (y - S / 2) + "px"; };
+  const say = t => { bubble.textContent = t; bubble.style.opacity = "1"; bubbleH = bubble.offsetHeight; bubbleUntil = performance.now() + 1700; };
+  const setMood = (m, ms) => { mood = m; moodUntil = performance.now() + ms; };
+  const hop = () => { hopStart = performance.now(); };
+  const newGait = () => { gait = pick(["walk", "walk", "walk", "scurry", "hop"]); };
+  const startDance = () => { actKind = "dance"; holdUntil = performance.now() + 2400; };
+
+  function poke() {
+    const now = performance.now();
+    const wasAsleep = now < holdUntil && actKind === "sleep";
+    holdUntil = 0;
+    if (wasAsleep) { setMood("surprise", 700); say("!!"); hop(); }
+    else if (Math.random() < 0.18) { setMood("love", 1300); say("♥"); }
+    else { setMood("happy", 900); say(pick(HELLOS)); hop(); }
+    if (Math.random() < 0.4) teleport();
+  }
+  sprite.addEventListener("click", poke);
+
+  // ---- portal teleport to a random spot on screen ----
+  const anim = (el, kf, ms) => el.animate(kf, { duration: ms, easing: "ease-out", fill: "forwards" }).finished;
+  const portal = (cx, cy) => { const p = document.createElement("div"); p.className = "portal";
+    p.style.left = (cx - 27) + "px"; p.style.top = (cy - 15) + "px"; document.body.appendChild(p); return p; };
+  const openP = async p => { if (reduce) { p.style.opacity = "1"; return; }
+    await anim(p, [{ transform: "scale(0) rotate(0)", opacity: 0 }, { transform: "scale(1) rotate(200deg)", opacity: 1 }], 220); };
+  const closeP = async p => { if (!reduce)
+    await anim(p, [{ transform: "scale(1) rotate(200deg)", opacity: 1 }, { transform: "scale(0) rotate(360deg)", opacity: 0 }], 180); p.remove(); };
+
+  async function teleport() {
+    if (busy) return; busy = true; emote.style.opacity = "0"; bubble.style.opacity = "0"; bubbleUntil = 0;
+    const pA = portal(x, y); await openP(pA);
+    if (!reduce) await anim(sprite, [{ transform: "scale(1)", opacity: 1 }, { transform: "scale(0)", opacity: .2 }], 200);
+    sprite.style.visibility = "hidden"; await closeP(pA);
+    const t = newTarget(); x = t.x; y = t.y; target = newTarget(); newGait(); place();
+    const pB = portal(x, y); await openP(pB); sprite.style.visibility = "visible";
+    if (!reduce) await anim(sprite, [{ transform: "scale(0)", opacity: .2 }, { transform: "scale(1)", opacity: 1 }], 240);
+    sprite.style.transform = ""; await closeP(pB);
+    mood = "neutral"; moodUntil = 0; holdUntil = 0; tpAt = performance.now() + rand(6000, 12000); busy = false;
+  }
+
+  function decide(now) {
+    if (Math.random() < 0.42) { target = newTarget(); newGait(); return; }
+    const r = Math.random();
+    if (r < 0.12) { startDance(); return; }
+    if (r < 0.24) { setMood(pick(["deadpan", "dead", "sus", "cool"]), 1100); say(pick(MEMES)); actKind = "look"; holdUntil = now + 1200; return; }
+    if (r < 0.36) { setMood("surprise", 550); actKind = "look"; holdUntil = now + 750; return; }
+    if (r < 0.50) { setMood(pick(FLAVORS), 900); actKind = "look"; holdUntil = now + 950; return; }
+    actKind = r < 0.72 ? "look" : r < 0.88 ? "sit" : "sleep";
+    holdUntil = now + (actKind === "sleep" ? 2800 : actKind === "look" ? 1000 : 1300);
+  }
+
+  const SPEED = reduce ? 1.6 : 2.6;
+  function frame(now) {
+    requestAnimationFrame(frame);
+    if (busy) return;
+    if (now >= tpAt) { teleport(); return; }
+
+    const dancing = now < holdUntil && actKind === "dance";
+    let walking = false, sway = 0;
+    if (dancing) { sway = Math.round(Math.sin(now / 110) * 8); }
+    else if (now >= holdUntil) {
+      const dx = target.x - x, dy = target.y - y, dist = Math.hypot(dx, dy);
+      if (dist < 4) { decide(now); }
+      else { const sp = gait === "scurry" ? SPEED * 1.6 : SPEED;
+        x += dx / dist * sp; y += dy / dist * sp; walkDist += sp; walking = true; }
+    }
+
+    let expr, legRows, bob = 0, extra = "", tag;
+    if (dancing) {
+      expr = DANCE_FACES[Math.floor(now / 260) % DANCE_FACES.length];
+      legRows = LEG.scurry[Math.floor(now / 90) % LEG.scurry.length];
+      bob = -Math.abs(Math.sin(now / 110)) * 6;
+      extra = " translateX(" + sway + "px) rotate(" + (Math.sin(now / 140) * 8).toFixed(1) + "deg)"; tag = "🎵";
+    } else {
+      expr = now < moodUntil ? mood
+        : now < holdUntil ? (actKind === "sleep" ? "sleepy" : actKind === "sit" ? "happy" : "curious")
+        : walking && Math.floor(now / 900) % 4 === 0 ? "happy" : "neutral";
+      const sitting = now < holdUntil && (actKind === "sit" || actKind === "sleep");
+      const seq = LEG[gait];
+      legRows = sitting ? null : (walking ? seq[Math.floor(walkDist / 7) % seq.length] : LEG.stand[0]);
+      bob = walking && Math.floor(walkDist / 7) % 2 ? (gait === "hop" ? -5 : -2) : 0;
+      if (EMO[expr].shake) extra += " translateX(" + Math.round(Math.sin(now / 55) * 2) + "px)";
+      if (expr === "dizzy") extra += " rotate(" + (Math.sin(now / 110) * 12).toFixed(1) + "deg)";
+      tag = EMO[expr].tag;
+    }
+
+    draw(grid(expr, legRows));
+    let hopY = 0; const he = now - hopStart; if (he < 320) hopY = -Math.sin(he / 320 * Math.PI) * 8;
+    sprite.style.transform = "translate(0px," + (bob + hopY) + "px)" + extra;
+    place();
+
+    const head = y - S / 2;
+    if (tag) { if (emote.textContent !== tag) emote.textContent = tag; emote.style.opacity = "1";
+      emote.style.left = (x - 5) + "px"; emote.style.top = (head - 20) + "px"; }
+    else emote.style.opacity = "0";
+    if (bubbleUntil) {
+      bubble.style.left = Math.max(4, x - 12) + "px";
+      bubble.style.top = (head - bubbleH - (tag ? 16 : 8)) + "px";
+      if (now > bubbleUntil) { bubble.style.opacity = "0"; bubbleUntil = 0; }
+    }
+  }
+  place(); draw(grid("neutral", LEG.stand[0])); requestAnimationFrame(frame);
+
+  // ---- click-through toggle: only Clawde catches the mouse ----
+  let over = false;
+  addEventListener("mousemove", (e) => {
+    const pad = 6;
+    const isOver = e.clientX >= x - S / 2 - pad && e.clientX <= x + S / 2 + pad &&
+                   e.clientY >= y - S / 2 - pad && e.clientY <= y + S / 2 + pad;
+    if (isOver !== over) { over = isOver; window.clawde && window.clawde.setIgnore(!isOver); }
+  });
+</script>
+</body>
+</html>

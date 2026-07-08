@@ -1,0 +1,28 @@
+name: build desktop app
+
+# Push a tag like v0.1.0 to build installers for all three OSes and attach them
+# to the matching GitHub Release. Or run manually from the Actions tab.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install deps
+        working-directory: electron-app
+        run: npm install
+      - name: Build & publish installers
+        working-directory: electron-app
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npx electron-builder --publish always

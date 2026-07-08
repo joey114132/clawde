@@ -1,0 +1,27 @@
+{
+  "name": "clawde-desktop",
+  "productName": "Clawde",
+  "version": "0.1.0",
+  "description": "Clawde — a desktop mascot that wanders over your screen, on Windows, macOS and Linux.",
+  "main": "main.js",
+  "author": "joey114132",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder"
+  },
+  "devDependencies": {
+    "electron": "^31.3.1",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "io.github.joey114132.clawde",
+    "productName": "Clawde",
+    "files": ["main.js", "preload.js", "renderer/**", "build/icon.png"],
+    "directories": { "output": "release" },
+    "mac": { "target": ["dmg"], "icon": "build/icon.png", "category": "public.app-category.entertainment" },
+    "win": { "target": ["nsis"], "icon": "build/icon.png" },
+    "linux": { "target": ["AppImage"], "icon": "build/icon.png", "category": "Utility" },
+    "publish": [{ "provider": "github", "owner": "joey114132", "repo": "clawde" }]
+  }
+}
