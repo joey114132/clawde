@@ -37,16 +37,30 @@ He is not useful. That is entirely the point — he's just here to keep you comp
 > float over all your windows at once and hop between them. On GNOME Wayland it's the
 > *only* way to do that — a terminal program is trapped inside its own pane.
 
-## quick start — GNOME 🖥️
+## install — GNOME 🖥️
+
+**One line** — downloads, installs, and pre-enables him:
 
 ```bash
-cd gnome-extension && ./install.sh
-# log out and back in (Wayland needs to rescan the shell), then:
-gnome-extensions enable clawde@joey114132.github.io
+curl -fsSL https://raw.githubusercontent.com/joey114132/clawde/main/web-install.sh | bash
 ```
 
-That's it — from now on Clawde shows up **on his own** every time you log in. When you
-need some peace: `gnome-extensions disable clawde@joey114132.github.io`.
+Then **log out and back in** — Clawde appears on his own. That's it. 🎉
+Peace and quiet whenever: `gnome-extensions disable clawde@joey114132.github.io`.
+
+<details><summary>prefer to install from a clone?</summary>
+
+```bash
+git clone https://github.com/joey114132/clawde
+cd clawde/gnome-extension && ./install.sh
+# then log out / back in
+```
+</details>
+
+> **A one-click store is the goal:** Clawde is headed for
+> **[extensions.gnome.org](https://extensions.gnome.org)** (install straight from the site
+> or the *Extension Manager* app). Note: **Snap can't do it** — a GNOME Shell extension has
+> to live in the shell's own extensions folder, which Snap's sandbox can't reach.
 
 ## quick start — terminal 🐍 (Windows · macOS · Linux)
 

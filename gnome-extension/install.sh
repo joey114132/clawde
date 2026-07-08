@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Install Clawde as a GNOME Shell extension (GNOME 45–48, Wayland or X11).
+# Install Clawde as a GNOME Shell extension (GNOME 45–48, Wayland or X11) and
+# pre-enable it, so he shows up automatically the next time you log in.
 set -euo pipefail
 
 UUID="clawde@joey114132.github.io"
@@ -9,11 +10,21 @@ DEST="$HOME/.local/share/gnome-shell/extensions/$UUID"
 mkdir -p "$(dirname "$DEST")"
 rm -rf "$DEST"
 cp -r "$SRC" "$DEST"
-echo "Installed → $DEST"
+echo "✓ installed → $DEST"
+
+# Pre-enable via gsettings. gnome-extensions enable fails until the shell rescans
+# (a Wayland relogin), but writing enabled-extensions directly takes effect on next login.
+if command -v gsettings >/dev/null 2>&1; then
+  cur="$(gsettings get org.gnome.shell enabled-extensions 2>/dev/null || echo '@as []')"
+  case "$cur" in
+    *"$UUID"*)       : ;;                                                        # already enabled
+    "@as []" | "[]") gsettings set org.gnome.shell enabled-extensions "['$UUID']" ;;
+    *)               gsettings set org.gnome.shell enabled-extensions "${cur%]}, '$UUID']" ;;
+  esac
+  echo "✓ pre-enabled"
+fi
+
 echo
-echo "Next:"
-echo "  1. Wayland can't hot-reload the shell, so LOG OUT and back in."
-echo "     (On X11 you can instead press Alt+F2, type 'r', Enter.)"
-echo "  2. Enable it:  gnome-extensions enable $UUID"
-echo "  3. Clawde starts wandering. Disable with:"
-echo "         gnome-extensions disable $UUID"
+echo "🧡 Almost there — LOG OUT and back in (Wayland must rescan the shell)."
+echo "   Clawde then appears on his own. Turn him off any time with:"
+echo "       gnome-extensions disable $UUID"
