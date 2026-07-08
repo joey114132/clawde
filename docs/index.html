@@ -168,6 +168,30 @@ $ gnome-extensions enable <span class="d">\</span>
     <button id="reset" class="ghost">↺ reset</button>
   </div>
 
+  <style>
+    .board { margin-top: 22px; border: 1px solid var(--line); border-radius: 12px; background: var(--card); padding: 15px 18px; }
+    .board-head { font-size: 15px; margin-bottom: 10px; }
+    .board-note { color: var(--muted); font-size: 12px; font-weight: 400; }
+    .board-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 5px; }
+    .board-list li { display: flex; align-items: baseline; gap: 10px; font-size: 14px; font-variant-numeric: tabular-nums; }
+    .board-list .rank { width: 22px; color: var(--muted); font-weight: 700; }
+    .board-list .bn { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--fg); }
+    .board-list .bn.me { color: var(--accent); }
+    .board-list .bs { font-weight: 700; color: var(--accent); }
+    .board-empty { color: var(--muted); font-size: 13px; }
+    .board-submit { display: flex; gap: 8px; margin-top: 13px; }
+    .board-submit input { flex: 0 0 210px; max-width: 55%; padding: 7px 11px; border-radius: 8px; border: 1px solid var(--line); background: transparent; color: var(--fg); font: 500 13px system-ui, sans-serif; }
+    .board-submit input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  </style>
+  <div class="board">
+    <div class="board-head">🏆 <b>Leaderboard</b> <span id="board-note" class="board-note"></span></div>
+    <ol id="board-list" class="board-list"></ol>
+    <div class="board-submit">
+      <input id="nick" maxlength="24" placeholder="your nickname" autocomplete="off" aria-label="nickname">
+      <button id="submit-score">Submit my score</button>
+    </div>
+  </div>
+
   <p class="note"><span class="eyebrow">The real thing</span><br>
     In your GNOME session the extension does this inside your <em>actual</em> terminals —
     gnome-terminal, Terminator, Ghostty — starting automatically at login. Source &amp;
@@ -399,4 +423,64 @@ $ gnome-extensions enable <span class="d">\</span>
   const fit = () => { const s = Math.min(1, wrapEl.clientWidth / 900);
     stage.style.transform = "scale(" + s + ")"; wrapEl.style.height = (520 * s) + "px"; };
   new ResizeObserver(fit).observe(wrapEl); fit();
+
+  // ---------- leaderboard (Supabase) ----------
+  // Paste your Supabase project URL + anon key below to make the board live.
+  // The anon key is meant to be public — a row-level-security policy protects the table.
+  // Setup steps + SQL: see LEADERBOARD.md in the repo.
+  const SB_URL = "https://YOUR-PROJECT.supabase.co";
+  const SB_KEY = "YOUR-ANON-KEY";
+  const sbOn = () => SB_URL.startsWith("https://") && !SB_URL.includes("YOUR-PROJECT") && !SB_KEY.includes("YOUR-ANON");
+  const boardList = document.getElementById("board-list");
+  const boardNote = document.getElementById("board-note");
+  const nickInput = document.getElementById("nick");
+  nickInput.value = localStorage.getItem("clawde-nick") || "";
+  const sbHeaders = () => ({ apikey: SB_KEY, Authorization: "Bearer " + SB_KEY });
+
+  function renderBoard(rows, placeholder) {
+    boardList.textContent = "";
+    if (!rows.length) {
+      const li = document.createElement("li"); li.className = "board-empty";
+      li.textContent = placeholder ? "leaderboard not configured yet" : "no scores yet — be the first!";
+      boardList.appendChild(li); return;
+    }
+    const me = (localStorage.getItem("clawde-nick") || "").trim();
+    rows.forEach((row, i) => {
+      const li = document.createElement("li");
+      const rank = document.createElement("span"); rank.className = "rank"; rank.textContent = (i + 1) + ".";
+      const bn = document.createElement("span"); bn.className = "bn" + (row.nick === me ? " me" : "");
+      bn.textContent = row.nick;                         // textContent → XSS-safe
+      const bs = document.createElement("span"); bs.className = "bs"; bs.textContent = row.score;
+      li.append(rank, bn, bs); boardList.appendChild(li);
+    });
+  }
+  async function loadBoard() {
+    if (!sbOn()) { boardNote.textContent = "— add your Supabase keys in index.html to go live (see LEADERBOARD.md)"; renderBoard([], true); return; }
+    try {
+      const r = await fetch(SB_URL + "/rest/v1/scores?select=nick,score&order=score.desc&limit=10", { headers: sbHeaders() });
+      if (!r.ok) throw new Error(r.status);
+      renderBoard(await r.json(), false); boardNote.textContent = "";
+    } catch (e) { boardNote.textContent = "— couldn't load scores"; renderBoard([], false); }
+  }
+  async function submitMyScore() {
+    const nick = nickInput.value.trim().slice(0, 24);
+    if (!nick) { nickInput.focus(); boardNote.textContent = "— pick a nickname first"; return; }
+    localStorage.setItem("clawde-nick", nick);
+    const s = Math.max(score, best, 0);
+    if (s <= 0) { boardNote.textContent = "— go hit Clawde to score first!"; return; }
+    if (!sbOn()) { boardNote.textContent = "— (demo not configured) your best: " + s; return; }
+    boardNote.textContent = "— submitting…";
+    try {
+      const r = await fetch(SB_URL + "/rest/v1/scores", {
+        method: "POST",
+        headers: Object.assign(sbHeaders(), { "Content-Type": "application/json", Prefer: "return=minimal" }),
+        body: JSON.stringify({ nick, score: s }),
+      });
+      if (!r.ok) throw new Error(r.status);
+      boardNote.textContent = "— submitted! 🧡"; loadBoard();
+    } catch (e) { boardNote.textContent = "— submit failed"; }
+  }
+  document.getElementById("submit-score").addEventListener("click", submitMyScore);
+  nickInput.addEventListener("keydown", (e) => { if (e.key === "Enter") submitMyScore(); });
+  loadBoard();
 </script>
