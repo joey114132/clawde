@@ -49,7 +49,7 @@ every login — no terminal, no python.
 1. Open the **[latest release](https://github.com/joey114132/clawde/releases/latest)** and
    download the file for your OS:
    - **Windows** → `Clawde-Setup-0.1.0.exe`
-   - **macOS** → `Clawde-0.1.0.dmg`
+   - **macOS** (Apple Silicon) → `Clawde-0.1.0-arm64.dmg`  *(Intel build coming soon)*
 2. Run it:
    - **Windows** — double-click the `.exe`. SmartScreen may warn *"unknown publisher"* (it's
      not code-signed yet) → click **More info → Run anyway**.
