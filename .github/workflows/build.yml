@@ -7,9 +7,14 @@ on:
     tags: ["v*"]
   workflow_dispatch:
 
+# electron-builder creates the GitHub Release, which needs write access to contents.
+permissions:
+  contents: write
+
 jobs:
   build:
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
     runs-on: ${{ matrix.os }}
