@@ -156,7 +156,7 @@ with `vsce`. A Clawde wanders in a panel beside your code.
 
 ## roadmap 🗺️
 
-- [x] website leaderboard — nickname + Supabase ([enable it](LEADERBOARD.md))
+- [x] website leaderboard — **Sign in with GitHub** + Supabase, verified avatars ([enable it](LEADERBOARD.md))
 - [x] run *away* from your cursor (oneko-style)
 - [ ] richer sprite art & more little animations
 - [x] preferences — speed, size, which monitor

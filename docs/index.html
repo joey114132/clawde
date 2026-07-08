@@ -235,16 +235,22 @@ $ gnome-extensions enable <span class="d">\</span>
     .board-list .bn.me { color: var(--accent); }
     .board-list .bs { font-weight: 700; color: var(--accent); }
     .board-empty { color: var(--muted); font-size: 13px; }
-    .board-submit { display: flex; gap: 8px; margin-top: 13px; }
-    .board-submit input { flex: 0 0 210px; max-width: 55%; padding: 7px 11px; border-radius: 8px; border: 1px solid var(--line); background: transparent; color: var(--fg); font: 500 13px system-ui, sans-serif; }
-    .board-submit input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+    .board-auth { display: flex; align-items: center; gap: 10px; margin-top: 13px; flex-wrap: wrap; }
+    .gh-btn { display: inline-flex; align-items: center; gap: 7px; background: #24292f; color: #fff; border: 0; }
+    .gh-me { color: var(--muted); font-size: 13px; }
+    .gh-signout { font-size: 12px; }
+    .board-list li { align-items: center; }
+    .board-list .av { width: 20px; height: 20px; border-radius: 50%; flex: 0 0 auto; }
+    .board-list .ck { color: #2ea043; font-weight: 700; }
   </style>
   <div class="board">
     <div class="board-head">🏆 <b>Leaderboard</b> <span id="board-note" class="board-note"></span></div>
     <ol id="board-list" class="board-list"></ol>
-    <div class="board-submit">
-      <input id="nick" maxlength="24" placeholder="your nickname" autocomplete="off" aria-label="nickname">
-      <button id="submit-score">Submit my score</button>
+    <div class="board-auth">
+      <button id="gh-signin" class="gh-btn" hidden>Sign in with GitHub</button>
+      <span id="gh-me" class="gh-me" hidden></span>
+      <button id="submit-score" hidden>Submit my score</button>
+      <button id="gh-signout" class="ghost gh-signout" hidden>sign out</button>
     </div>
   </div>
 
@@ -528,16 +534,17 @@ $ gnome-extensions enable <span class="d">\</span>
 
   // ---------- leaderboard (Supabase) ----------
   // Paste your Supabase project URL + anon key below to make the board live.
-  // The anon key is meant to be public — a row-level-security policy protects the table.
-  // Setup steps + SQL: see LEADERBOARD.md in the repo.
+  // Verified GitHub sign-in via Supabase Auth. Real OAuth needs the Supabase SDK + a
+  // redirect, so it's live on the deployed site; the sandboxed demo/artifact (CSP) shows a
+  // note. Setup — Supabase project + GitHub OAuth app + SQL — is in LEADERBOARD.md.
   const SB_URL = "https://YOUR-PROJECT.supabase.co";
   const SB_KEY = "YOUR-ANON-KEY";
   const sbOn = () => SB_URL.startsWith("https://") && !SB_URL.includes("YOUR-PROJECT") && !SB_KEY.includes("YOUR-ANON");
   const boardList = document.getElementById("board-list");
   const boardNote = document.getElementById("board-note");
-  const nickInput = document.getElementById("nick");
-  nickInput.value = localStorage.getItem("clawde-nick") || "";
-  const sbHeaders = () => ({ apikey: SB_KEY, Authorization: "Bearer " + SB_KEY });
+  const btnIn = document.getElementById("gh-signin"), btnOut = document.getElementById("gh-signout");
+  const btnSub = document.getElementById("submit-score"), meEl = document.getElementById("gh-me");
+  let sb = null, me = null;                                 // supabase client + signed-in user
   let myCountry = localStorage.getItem("clawde-cc") || "";
   const flag = cc => (cc && cc.length === 2)
     ? String.fromCodePoint(...[...cc.toUpperCase()].map(c => 0x1F1E6 + c.charCodeAt(0) - 65)) : "🏳️";
@@ -549,53 +556,73 @@ $ gnome-extensions enable <span class="d">\</span>
   }
   detectCountry();
 
-  function renderBoard(rows, placeholder) {
+  function renderBoard(rows, msg) {
     boardList.textContent = "";
-    if (!rows.length) {
+    if (!rows || !rows.length) {
       const li = document.createElement("li"); li.className = "board-empty";
-      li.textContent = placeholder ? "leaderboard not configured yet" : "no scores yet — be the first!";
+      li.textContent = msg || "no scores yet — be the first!";
       boardList.appendChild(li); return;
     }
-    const me = (localStorage.getItem("clawde-nick") || "").trim();
     rows.forEach((row, i) => {
       const li = document.createElement("li");
       const rank = document.createElement("span"); rank.className = "rank"; rank.textContent = (i + 1) + ".";
-      const bn = document.createElement("span"); bn.className = "bn" + (row.nick === me ? " me" : "");
-      bn.textContent = row.nick;                         // textContent → XSS-safe
+      const av = document.createElement("img"); av.className = "av"; av.loading = "lazy"; av.alt = "";
+      av.src = row.avatar_url || ("https://github.com/" + encodeURIComponent(row.username || "") + ".png?size=40");
       const fl = document.createElement("span"); fl.className = "bf"; fl.textContent = flag(row.country); fl.title = row.country || "";
+      const bn = document.createElement("span"); bn.className = "bn" + (me && row.username === me.name ? " me" : "");
+      bn.textContent = row.username;                      // textContent → XSS-safe
+      const ck = document.createElement("span"); ck.className = "ck"; ck.textContent = "✓"; ck.title = "verified GitHub user";
       const bs = document.createElement("span"); bs.className = "bs"; bs.textContent = row.score;
-      li.append(rank, fl, bn, bs); boardList.appendChild(li);
+      li.append(rank, av, fl, bn, ck, bs); boardList.appendChild(li);
     });
   }
+  function reflect(session) {
+    const u = session && session.user;
+    me = u ? { id: u.id, name: u.user_metadata.user_name || u.user_metadata.preferred_username || "user", avatar: u.user_metadata.avatar_url } : null;
+    meEl.hidden = !me; btnIn.hidden = !!me; btnOut.hidden = !me; btnSub.hidden = !me;
+    if (me) meEl.textContent = "signed in as @" + me.name;
+  }
   async function loadBoard() {
-    if (!sbOn()) { boardNote.textContent = "— add your Supabase keys in index.html to go live (see LEADERBOARD.md)"; renderBoard([], true); return; }
     try {
-      const r = await fetch(SB_URL + "/rest/v1/scores?select=nick,score&order=score.desc&limit=10", { headers: sbHeaders() });
-      if (!r.ok) throw new Error(r.status);
-      renderBoard(await r.json(), false); boardNote.textContent = "";
-    } catch (e) { boardNote.textContent = "— couldn't load scores"; renderBoard([], false); }
+      let rows;
+      if (sb) {
+        const { data, error } = await sb.from("scores").select("username,avatar_url,country,score").order("score", { ascending: false }).limit(10);
+        if (error) throw error; rows = data;
+      } else {
+        const r = await fetch(SB_URL + "/rest/v1/scores?select=username,avatar_url,country,score&order=score.desc&limit=10",
+          { headers: { apikey: SB_KEY, Authorization: "Bearer " + SB_KEY } });
+        rows = r.ok ? await r.json() : [];
+      }
+      renderBoard(rows, "no scores yet — be the first!");
+    } catch (_) { boardNote.textContent = "— couldn't load scores"; }
   }
   async function submitMyScore() {
-    const nick = nickInput.value.trim().slice(0, 24);
-    if (!nick) { nickInput.focus(); boardNote.textContent = "— pick a nickname first"; return; }
-    localStorage.setItem("clawde-nick", nick);
+    if (!me) { boardNote.textContent = "— sign in first"; return; }
     const s = Math.max(score, best, 0);
     if (s <= 0) { boardNote.textContent = "— go hit Clawde to score first!"; return; }
-    if (!sbOn()) { boardNote.textContent = "— (demo not configured) your best: " + s; return; }
     boardNote.textContent = "— submitting…";
     try {
-      const r = await fetch(SB_URL + "/rest/v1/scores", {
-        method: "POST",
-        headers: Object.assign(sbHeaders(), { "Content-Type": "application/json", Prefer: "return=minimal" }),
-        body: JSON.stringify({ nick, score: s, country: myCountry || null }),
-      });
-      if (!r.ok) throw new Error(r.status);
+      const { error } = await sb.rpc("submit_score", { p_username: me.name, p_avatar: me.avatar, p_country: myCountry || null, p_score: s });
+      if (error) throw error;
       boardNote.textContent = "— submitted! 🧡"; loadBoard();
-    } catch (e) { boardNote.textContent = "— submit failed"; }
+    } catch (_) { boardNote.textContent = "— submit failed"; }
   }
-  document.getElementById("submit-score").addEventListener("click", submitMyScore);
-  nickInput.addEventListener("keydown", (e) => { if (e.key === "Enter") submitMyScore(); });
-  loadBoard();
+  async function initBoard() {
+    if (!sbOn()) { boardNote.textContent = "— not configured yet (see LEADERBOARD.md)"; renderBoard([], "leaderboard not configured yet"); return; }
+    let sdkOk = true;
+    try {
+      const mod = await import("https://esm.sh/@supabase/supabase-js@2");
+      sb = mod.createClient(SB_URL, SB_KEY);
+      sb.auth.onAuthStateChange((_e, session) => reflect(session));
+      reflect((await sb.auth.getSession()).data.session);
+      btnIn.onclick = () => sb.auth.signInWithOAuth({ provider: "github", options: { redirectTo: location.href.split("#")[0] } });
+      btnOut.onclick = async () => { await sb.auth.signOut(); reflect(null); };
+      btnSub.onclick = submitMyScore;
+    } catch (_) { sdkOk = false; }
+    await loadBoard();
+    if (!sdkOk) boardNote.textContent = "— sign-in on the live site ↗";
+  }
+  initBoard();
 </script>
 </body>
 </html>
