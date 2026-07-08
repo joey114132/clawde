@@ -169,6 +169,19 @@ $ gnome-extensions enable <span class="d">\</span>
   </div>
 
   <style>
+    .prefs { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin: 12px 2px 0; font-size: 13px; color: var(--muted); }
+    .prefs .plabel { font-weight: 600; }
+    .prefs input[type=range] { width: 120px; accent-color: var(--accent); vertical-align: middle; }
+    .prefs .pchk { display: inline-flex; align-items: center; gap: 6px; }
+    .prefs .pchk input { accent-color: var(--accent); }
+  </style>
+  <div class="prefs">
+    <span class="plabel">⚙️ speed</span> <input id="pref-speed" type="range" min="0.5" max="2" step="0.1" aria-label="speed">
+    <span class="plabel">size</span> <input id="pref-size" type="range" min="0.6" max="1.6" step="0.1" aria-label="size">
+    <label class="pchk"><input id="pref-flee" type="checkbox"> run away from cursor</label>
+  </div>
+
+  <style>
     .board { margin-top: 22px; border: 1px solid var(--line); border-radius: 12px; background: var(--card); padding: 15px 18px; }
     .board-head { font-size: 15px; margin-bottom: 10px; }
     .board-note { color: var(--muted); font-size: 12px; font-weight: 400; }
@@ -258,7 +271,8 @@ $ gnome-extensions enable <span class="d">\</span>
 
   const sprite = document.getElementById("clawde"), bubble = document.getElementById("bubble");
   const emote = document.getElementById("emote"), stage = document.getElementById("stage");
-  const SW = 29, SH = 29, reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let SW = 29, SH = 29;
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
   const pick = a => a[Math.floor(Math.random() * a.length)];
   const rand = (a, b) => a + Math.random() * (b - a);
 
@@ -369,8 +383,24 @@ $ gnome-extensions enable <span class="d">\</span>
   }
 
   // ---------- main loop ----------
-  const SPEED = reduce ? 1.4 : 2.3;
+  let SPEED = reduce ? 1.4 : 2.3; const SPEED0 = SPEED;
   const FLEE_R = 95, FLEE_SPEED = reduce ? 4 : 7;         // run away from the cursor
+  let fleeOn = localStorage.getItem("clawde-flee") !== "0";
+  function applyPrefs() {
+    SPEED = SPEED0 * (+localStorage.getItem("clawde-speed") || 1);
+    SW = SH = Math.round(29 * (+localStorage.getItem("clawde-size") || 1));
+    sprite.style.width = SW + "px"; sprite.style.height = SH + "px";
+  }
+  applyPrefs();
+  {
+    const gp = document.getElementById("pref-speed"), gz = document.getElementById("pref-size"), gf = document.getElementById("pref-flee");
+    gp.value = +localStorage.getItem("clawde-speed") || 1;
+    gz.value = +localStorage.getItem("clawde-size") || 1;
+    gf.checked = fleeOn;
+    gp.addEventListener("input", e => { localStorage.setItem("clawde-speed", e.target.value); applyPrefs(); });
+    gz.addEventListener("input", e => { localStorage.setItem("clawde-size", e.target.value); applyPrefs(); });
+    gf.addEventListener("change", e => { fleeOn = e.target.checked; localStorage.setItem("clawde-flee", fleeOn ? "1" : "0"); });
+  }
   let mx = -9999, my = -9999;
   addEventListener("mousemove", e => { mx = e.clientX; my = e.clientY; });
   addEventListener("mouseleave", () => { mx = my = -9999; });
@@ -393,7 +423,7 @@ $ gnome-extensions enable <span class="d">\</span>
     if (now >= tpAt) { teleport(); return; }
 
     // oneko-style: bolt away when the cursor gets close
-    if (mx > -9000) {
+    if (fleeOn && mx > -9000) {
       const rect = stage.getBoundingClientRect();
       const ix = (mx - rect.left) / (rect.width / 900), iy = (my - rect.top) / (rect.height / 520);
       const dc = Math.hypot(x - ix, y - iy);
