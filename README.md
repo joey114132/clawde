@@ -33,7 +33,13 @@ curl -fsSL https://raw.githubusercontent.com/joey114132/clawde/main/install.sh |
 irm https://raw.githubusercontent.com/joey114132/clawde/main/install.ps1 | iex
 ```
 
-<sub>Not code-signed yet, so the first launch shows a "run anyway / open" prompt. See [install](#install-) for the manual/store options.</sub>
+> **Needs `curl`** (mac & Linux only). It's **pre-installed on macOS** — nothing to do.
+> On a minimal Linux box, install it first if it's missing:
+> `sudo apt install curl` (Debian/Ubuntu) · `sudo dnf install curl` (Fedora) · `sudo pacman -S curl` (Arch).
+> The **Windows** line uses PowerShell's built-in `irm`, so **no curl needed** there.
+>
+> Not code-signed yet → the first launch shows a "run anyway / open" prompt. Prefer to
+> click instead of curl? See [install](#install-) for the download-from-Releases steps.
 
 ## meet clawde
 
@@ -70,8 +76,8 @@ every login — no terminal, no python.
 
 1. Open the **[latest release](https://github.com/joey114132/clawde/releases/latest)** and
    download the file for your OS:
-   - **Windows** → `Clawde-Setup-0.1.0.exe`
-   - **macOS** (Apple Silicon) → `Clawde-0.1.0-arm64.dmg`  *(Intel build coming soon)*
+   - **Windows** → `Clawde-Setup-*.exe`
+   - **macOS** (Intel & Apple Silicon) → `Clawde-*-universal.dmg`
 2. Run it:
    - **Windows** — double-click the `.exe`. SmartScreen may warn *"unknown publisher"* (it's
      not code-signed yet) → click **More info → Run anyway**.
