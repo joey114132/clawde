@@ -130,6 +130,18 @@ Python 3.8+, zero dependencies, runs from any shell. On Windows he auto-enables 
 ANSI renders (Windows Terminal recommended). **Ctrl-C** sends him home — he draws to the
 alternate screen, so your scrollback stays untouched.
 
+### 🎋 tmux — a Clawde in your status bar
+
+He can also pace across your tmux status line. Add to `~/.tmux.conf`:
+
+```tmux
+set -g status-interval 1
+set -ag status-right '#(python3 /path/to/clawde.py --tmux)'
+```
+
+Reload (`tmux source ~/.tmux.conf`) and a little `(◕ᴥ◕)` walks back and forth, blinking and
+occasionally in a mood. Widen his stroll with `--tmux-width 24`.
+
 ### 🧩 VS Code — the panel
 
 Open [`vscode-extension/`](vscode-extension/) in VS Code and press **F5**, or package it
@@ -158,9 +170,9 @@ with `vsce`. A Clawde wanders in a panel beside your code.
 
 - [x] website leaderboard — **Sign in with GitHub** + Supabase, verified avatars ([enable it](LEADERBOARD.md))
 - [x] run *away* from your cursor (oneko-style)
-- [ ] richer sprite art & more little animations
+- [x] richer sprite art & more little animations — blink, barrel-roll, wave, yawn, spin, cry…
 - [x] preferences — speed, size, which monitor
-- [ ] tmux mode
+- [x] tmux mode — `clawde.py --tmux` walks the status bar
 
 ---
 

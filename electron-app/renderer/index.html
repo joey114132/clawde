@@ -51,8 +51,11 @@
     wave:     { px: [[3,2,E],[3,3,E],[3,5,E],[3,6,E],[6,3,E],[6,4,E],[6,5,E]], tag: "👋" },
     yawn:     { px: [[4,2,E],[4,3,E],[4,5,E],[4,6,E],[5,4,E],[6,3,E],[6,4,E],[6,5,E]], tag: "💤" },
     spin:     { px: [[3,2,E],[3,3,E],[3,5,E],[3,6,E]], tag: "🌀" },
+    blink:    { px: [[4,2,E],[4,3,E],[4,5,E],[4,6,E]], tag: "" },
+    cry:      { px: [[3,2,E],[3,6,E],[4,3,E],[4,5,E],[5,3,BL],[5,6,BL],[6,4,E]], tag: "😢" },
+    stars:    { px: [[3,2,GOLD],[3,3,GOLD],[3,5,GOLD],[3,6,GOLD],[6,3,E],[6,4,E],[6,5,E]], tag: "🤩" },
   };
-  const FLAVORS = ["cool", "wink", "laugh", "curious", "happy", "wave", "yawn", "spin"];
+  const FLAVORS = ["cool", "wink", "laugh", "curious", "happy", "wave", "yawn", "spin", "cry", "stars"];
   const MEMES = ["yeet!", "stonks 📈", "such wow", "gg", "this is fine", "no thoughts",
     "404: nap not found", "sudo pet me", "it works?!", "vibing~", "💀💀💀", "rm -rf feelings"];
   const DANCE_FACES = ["happy", "excited", "cool", "laugh"];
@@ -90,7 +93,7 @@
 
   let t0 = newTarget();
   let x = t0.x, y = t0.y, target = newTarget(), busy = false, bubbleUntil = 0, bubbleH = 24;
-  let holdUntil = 0, actKind = null, mood = "neutral", moodUntil = 0, hopStart = -1e9;
+  let holdUntil = 0, actKind = null, mood = "neutral", moodUntil = 0, hopStart = -1e9, rollUntil = 0, blinkUntil = 0, nextBlink = 900;
   let gait = "walk", walkDist = 0, tpAt = performance.now() + rand(6000, 12000);
 
   const place = () => { sprite.style.left = (x - S / 2) + "px"; sprite.style.top = (y - S / 2) + "px"; };
@@ -136,6 +139,7 @@
     if (Math.random() < 0.42) { target = newTarget(); newGait(); return; }
     const r = Math.random();
     if (r < 0.12) { startDance(); return; }
+    if (r < 0.20) { rollUntil = now + 520; hop(); target = newTarget(); return; }  // barrel roll
     if (r < 0.24) { setMood(pick(["deadpan", "dead", "sus", "cool"]), 1100); say(pick(MEMES)); actKind = "look"; holdUntil = now + 1200; return; }
     if (r < 0.36) { setMood("surprise", 550); actKind = "look"; holdUntil = now + 750; return; }
     if (r < 0.50) { setMood(pick(FLAVORS), 900); actKind = "look"; holdUntil = now + 950; return; }
@@ -164,6 +168,7 @@
   }
   function frame(now) {
     requestAnimationFrame(frame);
+    if (now > nextBlink) { blinkUntil = now + 110; nextBlink = now + 1800 + Math.random() * 3200; }
     if (busy) return;
     if (now >= tpAt) { teleport(); return; }
 
@@ -210,6 +215,8 @@
       if (EMO[expr].shake) extra += " translateX(" + Math.round(Math.sin(now / 55) * 2) + "px)";
       if (expr === "dizzy") extra += " rotate(" + (Math.sin(now / 110) * 12).toFixed(1) + "deg)";
       if (expr === "spin") extra += " rotate(" + Math.round((now / 2) % 360) + "deg)";
+      if (now < blinkUntil && (expr === "neutral" || expr === "happy" || expr === "curious")) expr = "blink";
+      if (now < rollUntil) extra += " rotate(" + Math.round((1 - (rollUntil - now) / 520) * 360) + "deg)";
       tag = EMO[expr].tag;
     }
 

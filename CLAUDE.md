@@ -19,6 +19,7 @@ python3 clawde.py            # run it (Ctrl-C to quit)
 python3 clawde.py --speed 0.2 --no-color
 python3 clawde.py --selftest # pure-logic checks, no animation
 python3 clawde.py --frames 5 # run N frames then exit (smoke test / CI)
+python3 clawde.py --tmux     # one status-bar frame (for tmux status-right)
 ```
 
 No third-party dependencies — Python 3.8+ stdlib only.
@@ -38,5 +39,7 @@ requirements.txt # (empty — stdlib only)
   (`--selftest`). The animation loop itself is exercised with `--frames N`.
 - Single-line sprite + fixed `ERASE_W` keeps erase logic trivial; the ceiling is
   double-width glyphs (covered by a generous erase width).
-- Roadmap: cursor/mouse-follow ("run away from the pointer"), VS Code webview panel,
-  tmux status-line mode, config file for colors/sprite.
+- Done since first draft: run-away-from-cursor (all surfaces), tmux status-line mode
+  (`--tmux`), Electron desktop app + prefs (speed/size/monitor), GNOME prefs.js,
+  richer animations (blink/roll/wave/yawn/spin/cry/stars), GitHub-login leaderboard.
+- Roadmap: VS Code webview panel polish, config file for terminal colors/sprite.

@@ -5,6 +5,7 @@
     py clawde.py                 # Windows (PowerShell / cmd)
     python3 clawde.py --speed 0.2
     python3 clawde.py --selftest # logic check, no animation
+    python3 clawde.py --tmux     # one-line Clawde for the tmux status bar
 
 Pure stdlib, no dependencies. Cross-platform: Windows / macOS / Linux, launched from
 any shell (PowerShell, cmd, zsh, bash, fish). On Windows it auto-enables VT processing
@@ -16,6 +17,7 @@ import sys
 import time
 import random
 import shutil
+import json
 import signal
 import argparse
 
@@ -33,6 +35,16 @@ FRAMES = {
 }
 # ponytail: generous fixed erase width covers any ambiguous double-width glyph.
 ERASE_W = 8
+
+# tmux status-bar mode: a compact kaomoji Clawde (a 9x9 pixel sprite can't fit one row).
+TMUX_SPRITES = {
+    "walk": ["(◕ᴥ◕)", "(◕ᵕ◕)"],
+    "blink": ["(-ᴥ-)"],
+    "happy": ["(◕ᴗ◕)"],
+    "love": ["(♥ᴥ♥)"],
+    "sleepy": ["(-.-)"],
+}
+TMUX_W = 5  # sprite width in columns
 
 
 def clamp(v, lo, hi):
@@ -118,7 +130,63 @@ def selftest():
     for _ in range(500):
         tx, ty = pick_target(80, 24)
         assert 0 <= tx <= 80 - ERASE_W and 0 <= ty <= 23
+    assert _tmux_step(0, 1, 5) == (1, 1)
+    assert _tmux_step(5, 1, 5) == (5, -1)       # bounce at the right edge
+    assert _tmux_step(0, -1, 5) == (0, 1)        # bounce at the left edge
+    assert _tmux_step(3, 1, 5) == (4, 1)
     print("selftest ok")
+
+
+def _tmux_step(x, d, span):
+    """Advance x by d within [0, span], bouncing at the edges. Pure — checked in selftest."""
+    x += d
+    if x >= span:
+        return span, -1
+    if x <= 0:
+        return 0, 1
+    return x, d
+
+
+def _tmux_state_path():
+    base = os.environ.get("XDG_CACHE_HOME") or os.path.join(os.path.expanduser("~"), ".cache")
+    return os.path.join(base, "clawde", "tmux.json")
+
+
+def tmux_frame(width=16, color=True):
+    """One status-bar frame: read persisted state, take a step, return a single line.
+    tmux calls this every `status-interval` seconds, so state lives in a small JSON file."""
+    span = max(1, width - TMUX_W)
+    st = {"x": 0, "dir": 1, "phase": 0, "tick": 0, "mood": None, "mood_t": 0}
+    p = _tmux_state_path()
+    try:
+        with open(p, encoding="utf-8") as f:
+            st.update(json.load(f))
+    except (OSError, ValueError):
+        pass  # first run / unreadable — start fresh
+    st["x"], st["dir"] = _tmux_step(st["x"], st["dir"], span)
+    st["tick"] += 1
+    st["phase"] ^= 1
+    if st["mood_t"] > 0:
+        st["mood_t"] -= 1
+        sprite = TMUX_SPRITES.get(st["mood"], TMUX_SPRITES["walk"])[0]
+    elif random.random() < 0.06:
+        st["mood"] = random.choice(["happy", "love", "sleepy"])
+        st["mood_t"] = random.randint(2, 5)
+        sprite = TMUX_SPRITES[st["mood"]][0]
+    elif st["tick"] % 8 == 0:
+        sprite = TMUX_SPRITES["blink"][0]
+    else:
+        sprite = TMUX_SPRITES["walk"][st["phase"] % 2]
+    line = " " * st["x"] + sprite
+    if color:
+        line = "#[fg=colour209]" + line + "#[fg=default]"  # tmux orange; harmless if unstyled
+    try:
+        os.makedirs(os.path.dirname(p), exist_ok=True)
+        with open(p, "w", encoding="utf-8") as f:
+            json.dump(st, f)
+    except OSError:
+        pass  # can't persist → still renders, just won't animate
+    return line
 
 
 def _enable_ansi():
@@ -148,9 +216,15 @@ def main():
     ap.add_argument("--no-color", action="store_true", help="disable orange")
     ap.add_argument("--frames", type=int, default=None, help="run N frames then exit (testing)")
     ap.add_argument("--selftest", action="store_true", help="run logic checks and exit")
+    ap.add_argument("--tmux", action="store_true", help="print one status-bar frame and exit (for tmux)")
+    ap.add_argument("--tmux-width", type=int, default=16, help="columns Clawde paces across in tmux")
     a = ap.parse_args()
     if a.selftest:
         selftest()
+        return
+    if a.tmux:
+        _enable_ansi()
+        sys.stdout.write(tmux_frame(width=a.tmux_width, color=not a.no_color))
         return
     _enable_ansi()
     try:

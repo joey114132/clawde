@@ -103,6 +103,13 @@
 
   #clawde { position: absolute; z-index: 50; width: 29px; height: 29px; cursor: pointer;
     image-rendering: pixelated; transform-origin: center; filter: drop-shadow(0 2px 3px rgba(0,0,0,.5)); }
+  .fakecur { position: absolute; z-index: 60; width: 22px; height: 22px; pointer-events: none;
+    filter: drop-shadow(0 1px 2px rgba(0,0,0,.55)); transition: opacity .3s; }
+  .fakecur.tap { animation: curtap .22s ease; }
+  @keyframes curtap { 40% { transform: scale(.72); } }
+  .ripple { position: absolute; z-index: 59; border: 2px solid var(--accent); border-radius: 50%;
+    pointer-events: none; transform: translate(-50%, -50%); animation: rip .5s ease-out forwards; }
+  @keyframes rip { from { width: 6px; height: 6px; opacity: .85; } to { width: 46px; height: 46px; opacity: 0; } }
   .portal { position: absolute; z-index: 45; width: 35px; height: 20px; border-radius: 50%;
     pointer-events: none; opacity: 0;
     background: radial-gradient(closest-side, rgba(255,225,190,.95), #e8975f 58%, #c2683f 76%, transparent 84%);
@@ -166,6 +173,7 @@
     chain hits for a combo.</p>
 
   <div class="screen-wrap"><div class="stage" id="stage">
+    <svg id="fakecur" class="fakecur" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3 L5 19 L9.5 14.5 L12.5 21 L15 20 L12 13.5 L18 13.5 Z" fill="#fff" stroke="#111" stroke-width="1.4" stroke-linejoin="round"/></svg>
     <div class="term" style="left:48px; top:64px; width:392px; height:236px;">
       <div class="bar"><span class="dot" style="background:#e06c60"></span>
         <span class="dot" style="background:#e6b24a"></span>
@@ -286,8 +294,11 @@ $ gnome-extensions enable <span class="d">\</span>
     wave:     { px: [[3,2,E],[3,3,E],[3,5,E],[3,6,E],[6,3,E],[6,4,E],[6,5,E]], tag: "👋" },
     yawn:     { px: [[4,2,E],[4,3,E],[4,5,E],[4,6,E],[5,4,E],[6,3,E],[6,4,E],[6,5,E]], tag: "💤" },
     spin:     { px: [[3,2,E],[3,3,E],[3,5,E],[3,6,E]], tag: "🌀" },
+    blink:    { px: [[4,2,E],[4,3,E],[4,5,E],[4,6,E]], tag: "" },
+    cry:      { px: [[3,2,E],[3,6,E],[4,3,E],[4,5,E],[5,3,BL],[5,6,BL],[6,4,E]], tag: "😢" },
+    stars:    { px: [[3,2,GOLD],[3,3,GOLD],[3,5,GOLD],[3,6,GOLD],[6,3,E],[6,4,E],[6,5,E]], tag: "🤩" },
   };
-  const FLAVORS = ["cool", "wink", "laugh", "curious", "happy", "wave", "yawn", "spin"];
+  const FLAVORS = ["cool", "wink", "laugh", "curious", "happy", "wave", "yawn", "spin", "cry", "stars"];
   const MEMES = ["yeet!", "stonks 📈", "such wow", "gg", "this is fine", "no thoughts",
     "404: nap not found", "sudo pet me", "it works?!", "vibing~", "💀💀💀", "rm -rf feelings"];
   const DANCE_FACES = ["happy", "excited", "cool", "laugh"];
@@ -337,7 +348,7 @@ $ gnome-extensions enable <span class="d">\</span>
 
   // ---------- state ----------
   let wi = 0, x, y, target, busy = false, bubbleUntil = 0, bubbleH = 24;
-  let holdUntil = 0, actKind = null, mood = "neutral", moodUntil = 0, hopStart = -1e9;
+  let holdUntil = 0, actKind = null, mood = "neutral", moodUntil = 0, hopStart = -1e9, rollUntil = 0, blinkUntil = 0, nextBlink = 900;
   let gait = "walk", walkDist = 0;
   let score = 0, best = 0, combo = 0, comboUntil = 0;
   let tpAt = performance.now() + rand(5000, 9000);
@@ -423,6 +434,7 @@ $ gnome-extensions enable <span class="d">\</span>
     if (Math.random() < 0.42) { target = newTarget(roam(WINS[wi])); newGait(); return; }
     const r = Math.random();
     if (r < 0.12) { startDance(now); return; }                                   // break into a dance
+    if (r < 0.20) { rollUntil = now + 520; hop(); target = newTarget(roam(WINS[wi])); return; }  // barrel roll
     if (r < 0.24) { setMood(pick(["deadpan", "dead", "sus", "cool"]), 1100); say(pick(MEMES)); actKind = "look"; holdUntil = now + 1200; return; }
     if (r < 0.36) { setMood("surprise", 550); actKind = "look"; holdUntil = now + 750; return; }
     if (r < 0.50) { setMood(pick(FLAVORS), 900); actKind = "look"; holdUntil = now + 950; return; }
@@ -450,8 +462,41 @@ $ gnome-extensions enable <span class="d">\</span>
     gf.addEventListener("change", e => { fleeOn = e.target.checked; localStorage.setItem("clawde-flee", fleeOn ? "1" : "0"); });
   }
   let mx = -9999, my = -9999;
-  addEventListener("mousemove", e => { mx = e.clientX; my = e.clientY; });
+  // attract mode: a fake cursor plays the game itself until your real mouse moves
+  const fakecur = document.getElementById("fakecur");
+  let acX = 460, acY = 200, atX = 720, atY = 250, acPounce = false, acPounceT = 0, attract = true;
+  function endAttract() { if (attract) { attract = false; fakecur.style.opacity = "0"; } }
+  addEventListener("mousemove", e => { mx = e.clientX; my = e.clientY; endAttract(); });
   addEventListener("mouseleave", () => { mx = my = -9999; });
+  function pickTease() {
+    const ang = Math.random() * Math.PI * 2, r = 70 + Math.random() * 70;
+    atX = Math.min(Math.max(x + Math.cos(ang) * r, 30), 870);
+    atY = Math.min(Math.max(y + Math.sin(ang) * r, 30), 490);
+    acPounce = false;
+  }
+  function placeCursor() { fakecur.style.left = (acX - 4) + "px"; fakecur.style.top = (acY - 3) + "px"; }
+  function tapCursor() {
+    fakecur.classList.remove("tap"); void fakecur.offsetWidth; fakecur.classList.add("tap");
+    const rp = document.createElement("div"); rp.className = "ripple";
+    rp.style.left = acX + "px"; rp.style.top = acY + "px";
+    stage.appendChild(rp); setTimeout(() => rp.remove(), 500);
+  }
+  function attractStep() {
+    if (acPounce) {                                        // home on Clawde and try to catch him
+      atX = x; atY = y; acPounceT++;
+      if (Math.hypot(x - acX, y - acY) < 32) { tapCursor(); if (!busy) hit(); pickTease(); placeCursor(); return; }
+      if (acPounceT > 240) pickTease();                    // too slippery — back to teasing
+    }
+    const dx = atX - acX, dy = atY - acY, d = Math.hypot(dx, dy) || 1, sp = acPounce ? 8 : 3.6;
+    if (!acPounce && d < sp) {
+      acX = atX; acY = atY;
+      if (Math.random() < 0.55) { acPounce = true; acPounceT = 0; } else pickTease();
+    } else {
+      acX += dx / d * sp; acY += dy / d * sp;
+      if (!acPounce && Math.random() < 0.03) pickTease();
+    }
+    placeCursor();
+  }
   function chrome(tag) {                                  // keep the emote + cloud pinned to Clawde, every frame
     const head = y - SH / 2;
     if (tag) { if (emote.textContent !== tag) emote.textContent = tag; emote.style.opacity = "1";
@@ -465,20 +510,23 @@ $ gnome-extensions enable <span class="d">\</span>
   }
   function frame(now) {
     requestAnimationFrame(frame);
+    if (attract) attractStep();
+    if (now > nextBlink) { blinkUntil = now + 110; nextBlink = now + 1800 + Math.random() * 3200; }
     if (combo > 0 && now > comboUntil) { combo = 0; hud(); meter.style.opacity = "0"; }
     if (combo >= 2) mBar.style.width = Math.max(0, (comboUntil - now) / COMBO_MS * 100) + "%";
     if (busy) return;
     if (now >= tpAt) { teleport(); return; }
 
-    // oneko-style: bolt away when the cursor gets close
-    if (fleeOn && mx > -9000) {
-      const rect = stage.getBoundingClientRect();
-      const ix = (mx - rect.left) / (rect.width / 900), iy = (my - rect.top) / (rect.height / 520);
-      const dc = Math.hypot(x - ix, y - iy);
-      if (dc < FLEE_R && ix > -40 && ix < 940 && iy > -40 && iy < 560) {
+    // oneko-style: bolt away when the cursor (fake attract cursor, or your mouse) gets close
+    let cix = -9999, ciy = -9999;
+    if (attract) { cix = acX; ciy = acY; }
+    else if (mx > -9000) { const rect = stage.getBoundingClientRect(); cix = (mx - rect.left) / (rect.width / 900); ciy = (my - rect.top) / (rect.height / 520); }
+    if (fleeOn && cix > -9000) {
+      const dc = Math.hypot(x - cix, y - ciy);
+      if (dc < FLEE_R && cix > -40 && cix < 940 && ciy > -40 && ciy < 560) {
         const rr = roam(WINS[wi]), d = dc || 1;
-        x = Math.min(Math.max(x + (x - ix) / d * FLEE_SPEED, rr.x + SW / 2), rr.x + rr.w - SW / 2);
-        y = Math.min(Math.max(y + (y - iy) / d * FLEE_SPEED, rr.y + SH / 2), rr.y + rr.h - SH / 2);
+        x = Math.min(Math.max(x + (x - cix) / d * FLEE_SPEED, rr.x + SW / 2), rr.x + rr.w - SW / 2);
+        y = Math.min(Math.max(y + (y - ciy) / d * FLEE_SPEED, rr.y + SH / 2), rr.y + rr.h - SH / 2);
         walkDist += FLEE_SPEED; target = newTarget(rr); holdUntil = 0; moodUntil = 0;
         draw(grid("scared", LEG.scurry[Math.floor(walkDist / 5) % LEG.scurry.length]));
         sprite.style.transform = "translateX(" + Math.round(Math.sin(now / 40) * 2) + "px)";
@@ -515,6 +563,8 @@ $ gnome-extensions enable <span class="d">\</span>
       if (EMO[expr].shake) extra += " translateX(" + Math.round(Math.sin(now / 55) * 2) + "px)";
       if (expr === "dizzy") extra += " rotate(" + (Math.sin(now / 110) * 12).toFixed(1) + "deg)";
       if (expr === "spin") extra += " rotate(" + Math.round((now / 2) % 360) + "deg)";
+      if (now < blinkUntil && (expr === "neutral" || expr === "happy" || expr === "curious")) expr = "blink";
+      if (now < rollUntil) extra += " rotate(" + Math.round((1 - (rollUntil - now) / 520) * 360) + "deg)";
       tag = EMO[expr].tag;
     }
     draw(sprite, grid(expr, legRows));

@@ -34,8 +34,11 @@ const EMO = {
   wave:     { px: [[3,2,E],[3,3,E],[3,5,E],[3,6,E],[6,3,E],[6,4,E],[6,5,E]], tag: "👋" },
   yawn:     { px: [[4,2,E],[4,3,E],[4,5,E],[4,6,E],[5,4,E],[6,3,E],[6,4,E],[6,5,E]], tag: "💤" },
   spin:     { px: [[3,2,E],[3,3,E],[3,5,E],[3,6,E]], tag: "🌀" },
+  blink:    { px: [[4,2,E],[4,3,E],[4,5,E],[4,6,E]], tag: "" },
+  cry:      { px: [[3,2,E],[3,6,E],[4,3,E],[4,5,E],[5,3,BL],[5,6,BL],[6,4,E]], tag: "😢" },
+  stars:    { px: [[3,2,GOLD],[3,3,GOLD],[3,5,GOLD],[3,6,GOLD],[6,3,E],[6,4,E],[6,5,E]], tag: "🤩" },
 };
-const FLAVORS = ["cool", "wink", "laugh", "curious", "happy", "wave", "yawn", "spin"];
+const FLAVORS = ["cool", "wink", "laugh", "curious", "happy", "wave", "yawn", "spin", "cry", "stars"];
 const MEMES = ["yeet!", "stonks 📈", "such wow", "gg", "this is fine", "no thoughts",
   "404: nap not found", "sudo pet me", "it works?!", "vibing~", "💀💀💀", "rm -rf feelings"];
 const DANCE_FACES = ["happy", "excited", "cool", "laugh"];
@@ -220,6 +223,7 @@ export default class ClawdeExtension extends Extension {
     if (Math.random() < 0.42) { this._target = this._newTarget(); this._newGait(); return; }
     const r = Math.random();
     if (r < 0.12) { this._startDance(); return; }
+    if (r < 0.20) { this._rollUntil = now + 520; this._target = this._newTarget(); return; }  // barrel roll
     if (r < 0.24) { this._setMood(pick(["deadpan", "dead", "sus", "cool"]), 1100); this._say(pick(MEMES)); this._actKind = "look"; this._holdUntil = now + 1200; return; }
     if (r < 0.36) { this._setMood("surprise", 550); this._actKind = "look"; this._holdUntil = now + 750; return; }
     if (r < 0.50) { this._setMood(pick(FLAVORS), 900); this._actKind = "look"; this._holdUntil = now + 950; return; }
@@ -229,6 +233,7 @@ export default class ClawdeExtension extends Extension {
 
   _tick() {
     const now = Date.now();
+    if (now > (this._nextBlink || 0)) { this._blinkUntil = now + 110; this._nextBlink = now + 1800 + Math.random() * 3200; }
     if (now >= this._tpAt) { this._teleport(); return; }
     if (!this._win || this._win.minimized) { this._pickWindow(); if (!this._win) { this._sprite.hide(); return; } }
     this._sprite.show();
@@ -277,6 +282,7 @@ export default class ClawdeExtension extends Extension {
       const seq = LEG[this._gait];
       legRows = sitting ? null : (walking ? seq[Math.floor(this._walkDist / 7) % seq.length] : LEG.stand[0]);
       bob = walking && Math.floor(this._walkDist / 7) % 2 ? (this._gait === "hop" ? -4 : -2) : 0;
+      if (now < (this._blinkUntil || 0) && (expr === "neutral" || expr === "happy" || expr === "curious")) expr = "blink";
       tag = EMO[expr].tag;
     }
 
@@ -285,7 +291,8 @@ export default class ClawdeExtension extends Extension {
     const px = Math.round(this._x - S / 2 + swayX), py = Math.round(this._y - S / 2 + bob);
     this._sprite.set_position(px, py);
     this._sprite.set_pivot_point(0.5, 0.5);
-    this._sprite.rotation_angle_z = expr === "spin" ? (now / 2) % 360 : (expr === "dizzy" ? Math.sin(now / 110) * 12 : 0);
+    this._sprite.rotation_angle_z = now < (this._rollUntil || 0) ? (1 - (this._rollUntil - now) / 520) * 360
+      : (expr === "spin" ? (now / 2) % 360 : (expr === "dizzy" ? Math.sin(now / 110) * 12 : 0));
 
     if (tag) { if (this._emote.text !== tag) this._emote.set_text(tag);
       this._emote.opacity = 255; this._emote.set_position(px + 4, py - 16); }
