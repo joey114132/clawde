@@ -31,8 +31,11 @@ const EMO = {
   deadpan:  { px: [[4,2,E],[4,3,E],[4,5,E],[4,6,E]], tag: "🗿" },
   dead:     { px: [[3,2,E],[4,3,E],[3,6,E],[4,5,E]], tag: "💀" },
   sus:      { px: [[4,3,E],[4,6,E],[2,6,E]], tag: "👀" },
+  wave:     { px: [[3,2,E],[3,3,E],[3,5,E],[3,6,E],[6,3,E],[6,4,E],[6,5,E]], tag: "👋" },
+  yawn:     { px: [[4,2,E],[4,3,E],[4,5,E],[4,6,E],[5,4,E],[6,3,E],[6,4,E],[6,5,E]], tag: "💤" },
+  spin:     { px: [[3,2,E],[3,3,E],[3,5,E],[3,6,E]], tag: "🌀" },
 };
-const FLAVORS = ["cool", "wink", "laugh", "curious", "happy"];
+const FLAVORS = ["cool", "wink", "laugh", "curious", "happy", "wave", "yawn", "spin"];
 const MEMES = ["yeet!", "stonks 📈", "such wow", "gg", "this is fine", "no thoughts",
   "404: nap not found", "sudo pet me", "it works?!", "vibing~", "💀💀💀", "rm -rf feelings"];
 const DANCE_FACES = ["happy", "excited", "cool", "laugh"];
@@ -232,6 +235,7 @@ export default class ClawdeExtension extends Extension {
       this._sprite.set_position(fx + Math.round(Math.sin(now / 40) * 2), fy);
       if (this._emote.text !== "😱") this._emote.set_text("😱");
       this._emote.opacity = 255; this._emote.set_position(fx + 4, fy - 16);
+      for (const b of this._bubbles) b.set_position(fx - 8, fy - 34);
       this._target = this._newTarget();
       return;
     }
@@ -268,6 +272,8 @@ export default class ClawdeExtension extends Extension {
     this._sprite.queue_repaint();
     const px = Math.round(this._x - S / 2 + swayX), py = Math.round(this._y - S / 2 + bob);
     this._sprite.set_position(px, py);
+    this._sprite.set_pivot_point(0.5, 0.5);
+    this._sprite.rotation_angle_z = expr === "spin" ? (now / 2) % 360 : (expr === "dizzy" ? Math.sin(now / 110) * 12 : 0);
 
     if (tag) { if (this._emote.text !== tag) this._emote.set_text(tag);
       this._emote.opacity = 255; this._emote.set_position(px + 4, py - 16); }

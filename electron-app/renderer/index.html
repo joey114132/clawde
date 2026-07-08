@@ -48,8 +48,11 @@
     deadpan:  { px: [[4,2,E],[4,3,E],[4,5,E],[4,6,E]], tag: "🗿" },
     dead:     { px: [[3,2,E],[4,3,E],[3,6,E],[4,5,E]], tag: "💀" },
     sus:      { px: [[4,3,E],[4,6,E],[2,6,E]], tag: "👀" },
+    wave:     { px: [[3,2,E],[3,3,E],[3,5,E],[3,6,E],[6,3,E],[6,4,E],[6,5,E]], tag: "👋" },
+    yawn:     { px: [[4,2,E],[4,3,E],[4,5,E],[4,6,E],[5,4,E],[6,3,E],[6,4,E],[6,5,E]], tag: "💤" },
+    spin:     { px: [[3,2,E],[3,3,E],[3,5,E],[3,6,E]], tag: "🌀" },
   };
-  const FLAVORS = ["cool", "wink", "laugh", "curious", "happy"];
+  const FLAVORS = ["cool", "wink", "laugh", "curious", "happy", "wave", "yawn", "spin"];
   const MEMES = ["yeet!", "stonks 📈", "such wow", "gg", "this is fine", "no thoughts",
     "404: nap not found", "sudo pet me", "it works?!", "vibing~", "💀💀💀", "rm -rf feelings"];
   const DANCE_FACES = ["happy", "excited", "cool", "laugh"];
@@ -143,6 +146,17 @@
   const SPEED = reduce ? 1.6 : 2.6;
   const FLEE_R = 120, FLEE_SPEED = reduce ? 5 : 9;       // run away from the cursor
   let mx = -9999, my = -9999;
+  function chrome(tag) {                                  // keep emote + cloud pinned to Clawde every frame
+    const head = y - S / 2;
+    if (tag) { if (emote.textContent !== tag) emote.textContent = tag; emote.style.opacity = "1";
+      emote.style.left = (x - 5) + "px"; emote.style.top = (head - 20) + "px"; }
+    else emote.style.opacity = "0";
+    if (bubbleUntil) {
+      bubble.style.left = Math.max(4, x - 12) + "px";
+      bubble.style.top = (head - bubbleH - (tag ? 16 : 8)) + "px";
+      if (performance.now() > bubbleUntil) { bubble.style.opacity = "0"; bubbleUntil = 0; }
+    }
+  }
   function frame(now) {
     requestAnimationFrame(frame);
     if (busy) return;
@@ -159,9 +173,7 @@
         draw(grid("scared", LEG.scurry[Math.floor(walkDist / 5) % LEG.scurry.length]));
         sprite.style.transform = "translateX(" + Math.round(Math.sin(now / 40) * 2) + "px)";
         place();
-        emote.textContent = "😱"; emote.style.opacity = "1";
-        emote.style.left = (x - 5) + "px"; emote.style.top = (y - S / 2 - 20) + "px";
-        bubble.style.opacity = "0"; bubbleUntil = 0;
+        chrome("😱");
         return;
       }
     }
@@ -192,6 +204,7 @@
       bob = walking && Math.floor(walkDist / 7) % 2 ? (gait === "hop" ? -5 : -2) : 0;
       if (EMO[expr].shake) extra += " translateX(" + Math.round(Math.sin(now / 55) * 2) + "px)";
       if (expr === "dizzy") extra += " rotate(" + (Math.sin(now / 110) * 12).toFixed(1) + "deg)";
+      if (expr === "spin") extra += " rotate(" + Math.round((now / 2) % 360) + "deg)";
       tag = EMO[expr].tag;
     }
 
@@ -200,15 +213,7 @@
     sprite.style.transform = "translate(0px," + (bob + hopY) + "px)" + extra;
     place();
 
-    const head = y - S / 2;
-    if (tag) { if (emote.textContent !== tag) emote.textContent = tag; emote.style.opacity = "1";
-      emote.style.left = (x - 5) + "px"; emote.style.top = (head - 20) + "px"; }
-    else emote.style.opacity = "0";
-    if (bubbleUntil) {
-      bubble.style.left = Math.max(4, x - 12) + "px";
-      bubble.style.top = (head - bubbleH - (tag ? 16 : 8)) + "px";
-      if (now > bubbleUntil) { bubble.style.opacity = "0"; bubbleUntil = 0; }
-    }
+    chrome(tag);
   }
   place(); draw(grid("neutral", LEG.stand[0])); requestAnimationFrame(frame);
 
