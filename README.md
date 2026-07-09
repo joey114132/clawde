@@ -57,7 +57,8 @@ irm https://raw.githubusercontent.com/joey114132/clawde/main/install.ps1 | iex
 Clawde is a desktop mascot that hangs out *inside* your terminals while you code.
 He is not useful. That is entirely the point — he's just here to keep you company. 🐾
 
-- 🚶 **wanders** the blank margin of a terminal window, with a shuffling, never-quite-the-same gait
+- 🚶 **wanders** the blank margin of a terminal window, **swinging his arms** with a shuffling, never-quite-the-same gait
+- 🏃 **runs from your cursor** (oneko-style) — get too close and he bolts away, spooked
 - 🌀 **portals** to another terminal every few seconds
 - 🎭 **has feelings** — happy, sleepy, dizzy, curious, head-over-heels in love, and more
 - 🕺 **dances** entirely unprompted
@@ -152,11 +153,12 @@ with `vsce`. A Clawde wanders in a panel beside your code.
 ## how clawde feels 🎭
 
 `happy ✨` · `love ❤️` · `sleepy 💤` · `dizzy 😵` · `curious ❓` · `surprised ❗` ·
-`cool 😎` · `sad 💧` — plus a few meme faces (`🗿` `💀` `👀`) for when words fail.
+`cool 😎` · `sad 💧` · `wave 👋` · `spin 🌀` · `cry 😢` · `starstruck 🤩` — plus a few
+meme faces (`🗿` `💀` `👀`) and an idle **blink**, for when words fail.
 
 ## the honest bits 📎
 
-- The GNOME extension targets **GNOME 46** (ESM). If Clawde doesn't appear after enabling,
+- The GNOME extension targets **GNOME 45–48** (ESM). If Clawde doesn't appear after enabling,
   peek at `journalctl --user -b | grep -i clawde` — and open an issue. 🙏
 - A terminal script genuinely **can't** cross tabs or windows (each is its own pseudo-terminal).
   That's *why* the "over everything" version has to be a Shell extension — a Wayland fact,
