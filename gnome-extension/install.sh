@@ -16,13 +16,15 @@ echo "✓ installed → $DEST"
 # Pre-enable via gsettings. gnome-extensions enable fails until the shell rescans
 # (a Wayland relogin), but writing enabled-extensions directly takes effect on next login.
 if command -v gsettings >/dev/null 2>&1; then
+  set +e                                                                       # headless/SSH/sudo has no D-Bus — a failed pre-enable must not abort the script
   cur="$(gsettings get org.gnome.shell enabled-extensions 2>/dev/null || echo '@as []')"
   case "$cur" in
     *"$UUID"*)       : ;;                                                        # already enabled
     "@as []" | "[]") gsettings set org.gnome.shell enabled-extensions "['$UUID']" ;;
     *)               gsettings set org.gnome.shell enabled-extensions "${cur%]}, '$UUID']" ;;
   esac
-  echo "✓ pre-enabled"
+  set -e
+  echo "✓ pre-enabled (if it didn't take, run after login: gnome-extensions enable $UUID)"
 fi
 
 echo

@@ -13,12 +13,17 @@ if (-not $asset) { throw "no Windows build in the latest release" }
 
 $exe = Join-Path $env:TEMP $asset.name
 Invoke-WebRequest $asset.browser_download_url -OutFile $exe -Headers $headers
-Start-Process -FilePath $exe -ArgumentList "/S" -Wait     # NSIS silent, per-user install
+$proc = Start-Process -FilePath $exe -ArgumentList "/S" -Wait -PassThru   # NSIS silent, per-user install
+if ($proc.ExitCode -ne 0) { throw "Installer exited with code $($proc.ExitCode) - nothing installed." }
 
 $app = Join-Path $env:LOCALAPPDATA "Programs\clawde\Clawde.exe"
 if (-not (Test-Path $app)) {
   $found = Get-ChildItem "$env:LOCALAPPDATA\Programs" -Recurse -Filter "Clawde.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
   if ($found) { $app = $found.FullName }
 }
-if (Test-Path $app) { Start-Process $app }
-Write-Host "Clawde is wandering. He'll be back at every login."
+if (Test-Path $app) {
+  Start-Process $app
+  Write-Host "Clawde is wandering. He'll be back at every login."
+} else {
+  throw "Install finished but Clawde.exe wasn't found - grab the installer from the Releases page and run it manually."
+}

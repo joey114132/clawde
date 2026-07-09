@@ -659,7 +659,7 @@ $ gnome-extensions enable <span class="d">\</span>
     if (s <= 0) { boardNote.textContent = "— go hit Clawde to score first!"; return; }
     boardNote.textContent = "— submitting…";
     try {
-      const { error } = await sb.rpc("submit_score", { p_username: me.name, p_avatar: me.avatar, p_country: myCountry || null, p_score: s });
+      const { error } = await sb.rpc("submit_score", { p_country: myCountry || null, p_score: s });  // username/avatar resolved server-side
       if (error) throw error;
       boardNote.textContent = "— submitted! 🧡"; loadBoard();
     } catch (_) { boardNote.textContent = "— submit failed"; }

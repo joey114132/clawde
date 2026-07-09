@@ -18,7 +18,7 @@ case "$(uname -s)" in
   Darwin)
     url="$(url_for '\.dmg')"; [ -n "$url" ] || { echo "✗ no macOS build in the latest release"; exit 1; }
     tmp="$(mktemp -d)"; curl -fsSL "$url" -o "$tmp/Clawde.dmg"
-    mnt="$(hdiutil attach "$tmp/Clawde.dmg" -nobrowse -quiet | grep -oE '/Volumes/[^ ]+' | tail -1)"
+    mnt="$(hdiutil attach "$tmp/Clawde.dmg" -nobrowse -quiet | grep '/Volumes/' | tail -1 | awk -F'\t' '{print $NF}')"
     mkdir -p "$HOME/Applications"
     rm -rf "$HOME/Applications/Clawde.app"
     cp -R "$mnt/Clawde.app" "$HOME/Applications/"

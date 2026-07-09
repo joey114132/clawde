@@ -40,7 +40,8 @@ requirements.txt # (empty — stdlib only)
   (`--selftest`). The animation loop itself is exercised with `--frames N`.
 - Single-line sprite + fixed `ERASE_W` keeps erase logic trivial; the ceiling is
   double-width glyphs (covered by a generous erase width).
-- Done since first draft: run-away-from-cursor (all surfaces), tmux status-line mode
+- Done since first draft: run-away-from-cursor (GNOME extension + Electron app only; the
+  terminal/VS Code just dart randomly), tmux status-line mode
   (`--tmux`), Electron desktop app + prefs (speed/size/monitor), GNOME prefs.js,
   richer animations (blink/roll/wave/yawn/spin/cry/stars), GitHub-login leaderboard.
 - Roadmap: VS Code webview panel polish, config file for terminal colors/sprite.

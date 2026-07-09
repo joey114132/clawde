@@ -173,7 +173,7 @@ meme faces (`🗿` `💀` `👀`) and an idle **blink**, for when words fail.
 ## roadmap 🗺️
 
 - [x] website leaderboard — **Sign in with GitHub** + Supabase, verified avatars ([enable it](LEADERBOARD.md))
-- [x] run *away* from your cursor (oneko-style)
+- [x] run *away* from your cursor (oneko-style) — GNOME extension + desktop app
 - [x] richer sprite art & more little animations — blink, barrel-roll, wave, yawn, spin, cry…
 - [x] preferences — speed, size, which monitor
 - [x] tmux mode — `clawde.py --tmux` walks the status bar

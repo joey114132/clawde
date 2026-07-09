@@ -55,8 +55,11 @@ actions and the odd dance; a countdown teleports it to another terminal
 (`get_window_actors()` filtered by `wm_class`). `disable()` removes every timeout and
 destroys the sprite, emote and bubbles — no leaks.
 
-## Roadmap
+## Status — all shipped
 
-- Real sprite art instead of a kaomoji (Clutter texture / SVG)
-- Run *away from* the pointer
-- Preferences (speed, sprite, which monitor)
+- Real pixel sprite (Cairo `St.DrawingArea`), with swinging arms
+- Run *away from* the pointer (`global.get_pointer()`)
+- Preferences (speed / size / monitor) via `prefs.js` + a gsettings schema
+- Terminator split-pane awareness
+
+See the root [README](../README.md) for the full feature list.

@@ -37,6 +37,7 @@ const EMO = {
   blink:    { px: [[4,2,E],[4,3,E],[4,5,E],[4,6,E]], tag: "" },
   cry:      { px: [[3,2,E],[3,6,E],[4,3,E],[4,5,E],[5,3,BL],[5,6,BL],[6,4,E]], tag: "😢" },
   stars:    { px: [[3,2,GOLD],[3,3,GOLD],[3,5,GOLD],[3,6,GOLD],[6,3,E],[6,4,E],[6,5,E]], tag: "🤩" },
+  scared:   { px: [[3,2,E],[3,3,E],[4,2,E],[4,3,E],[3,5,E],[3,6,E],[4,5,E],[4,6,E],[5,7,BL],[6,7,BL]], tag: "😨", shake: 1 },
 };
 const FLAVORS = ["cool", "wink", "laugh", "curious", "happy", "wave", "yawn", "spin", "cry", "stars"];
 const MEMES = ["yeet!", "stonks 📈", "such wow", "gg", "this is fine", "no thoughts",

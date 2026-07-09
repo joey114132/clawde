@@ -54,16 +54,25 @@ alter table scores enable row level security;
 -- anyone can read the board
 create policy "public read" on scores for select using (true);
 
--- writes go only through this function, which keeps the best score for the caller
-create or replace function submit_score(p_username text, p_avatar text, p_country text, p_score int)
+-- writes go only through this function. It resolves your GitHub username/avatar
+-- SERVER-SIDE from your auth identity (so they can't be spoofed) and keeps your best score.
+create or replace function submit_score(p_country text, p_score int)
 returns void
 language plpgsql
 security definer
 set search_path = public
 as $$
+declare
+  meta jsonb := (select raw_user_meta_data from auth.users where id = auth.uid());
 begin
   insert into scores (user_id, username, avatar_url, country, score)
-  values (auth.uid(), p_username, p_avatar, p_country, greatest(p_score, 0))
+  values (
+    auth.uid(),
+    coalesce(meta->>'user_name', meta->>'preferred_username', 'user'),
+    meta->>'avatar_url',
+    p_country,
+    least(greatest(p_score, 0), 1000000)
+  )
   on conflict (user_id) do update
     set score      = greatest(scores.score, excluded.score),
         username   = excluded.username,
@@ -73,7 +82,8 @@ begin
 end;
 $$;
 
-grant execute on function submit_score to authenticated;
+revoke execute on function submit_score(text, int) from public;   -- least-privilege: no anon
+grant  execute on function submit_score(text, int) to authenticated;
 ```
 
 Because `submit_score` runs as `auth.uid()`, a signed-in user can only write **their
