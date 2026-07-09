@@ -53,7 +53,7 @@ const LEG = {
 const TERMINALS = ["terminal", "terminator", "ghostty", "kitty", "alacritty",
   "konsole", "xterm", "wezterm", "foot", "tilix", "rio", "contour"];
 
-const PX = 3, S = PX * 9;              // sprite pixel size, 27px
+const PX = 3, S = PX * 9, AW = 11 * PX;   // 27px body; 33px incl. arms in the outer columns
 const TICK_MS = 80, SPEED = 5;
 const TP_MIN = 6000, TP_MAX = 13000, BUBBLE_MS = 1800;
 const pick = a => a[Math.floor(Math.random() * a.length)];
@@ -77,7 +77,7 @@ export default class ClawdeExtension extends Extension {
     this._gait = "walk"; this._walkDist = 0;
     this._bubbleUntil = 0; this._win = null;
 
-    this._sprite = new St.DrawingArea({ width: S, height: S, reactive: true });
+    this._sprite = new St.DrawingArea({ width: AW, height: S, reactive: true });
     this._sprite.connect("repaint", area => this._paint(area));
     this._clickId = this._sprite.connect("button-press-event", () => { this._poke(); return Clutter.EVENT_STOP; });
     Main.layoutManager.uiGroup.add_child(this._sprite);
@@ -112,8 +112,12 @@ export default class ClawdeExtension extends Extension {
     if (g) for (let r = 0; r < 9; r++) for (let c = 0; c < 9; c++) {
       const col = g[r][c]; if (!col) continue;
       cr.setSourceRGBA(col[0], col[1], col[2], 1);
-      cr.rectangle(c * PX, r * PX, PX, PX); cr.fill();
+      cr.rectangle((c + 1) * PX, r * PX, PX, PX); cr.fill();
     }
+    const aL = this._armL ?? 5, aR = this._armR ?? 5;   // swinging arms in the outer columns
+    cr.setSourceRGBA(ORANGE[0], ORANGE[1], ORANGE[2], 1);
+    cr.rectangle(0, aL * PX, PX, PX * 2); cr.fill();
+    cr.rectangle(10 * PX, aR * PX, PX, PX * 2); cr.fill();
     cr.$dispose();
   }
 
@@ -247,8 +251,9 @@ export default class ClawdeExtension extends Extension {
       this._y = Math.min(Math.max(this._y + dcy / d * sp, rr.y + S / 2), rr.y + rr.h - S / 2);
       this._walkDist += sp; this._holdUntil = 0; this._moodUntil = 0;
       this._grid = buildGrid("scared", LEG.scurry[Math.floor(this._walkDist / 5) % LEG.scurry.length]);
+      this._armL = 2; this._armR = 2;                    // arms up, panicking
       this._sprite.queue_repaint();
-      const fx = Math.round(this._x - S / 2), fy = Math.round(this._y - S / 2);
+      const fx = Math.round(this._x - AW / 2), fy = Math.round(this._y - S / 2);
       this._sprite.set_position(fx + Math.round(Math.sin(now / 40) * 2), fy);
       if (this._emote.text !== "😱") this._emote.set_text("😱");
       this._emote.opacity = 255; this._emote.set_position(fx + 4, fy - 16);
@@ -274,6 +279,7 @@ export default class ClawdeExtension extends Extension {
       expr = DANCE_FACES[Math.floor(now / 260) % DANCE_FACES.length];
       legRows = LEG.scurry[Math.floor(now / 90) % LEG.scurry.length];
       bob = -Math.round(Math.abs(Math.sin(now / 110)) * 5); tag = "🎵";
+      this._armL = Math.floor(now / 120) % 2 ? 2 : 3; this._armR = Math.floor(now / 120) % 2 ? 3 : 2;
     } else {
       expr = now < this._moodUntil ? this._mood
         : now < this._holdUntil ? (this._actKind === "sleep" ? "sleepy" : this._actKind === "sit" ? "happy" : "curious")
@@ -282,13 +288,14 @@ export default class ClawdeExtension extends Extension {
       const seq = LEG[this._gait];
       legRows = sitting ? null : (walking ? seq[Math.floor(this._walkDist / 7) % seq.length] : LEG.stand[0]);
       bob = walking && Math.floor(this._walkDist / 7) % 2 ? (this._gait === "hop" ? -4 : -2) : 0;
+      const wp = Math.floor(this._walkDist / 7) % 2; this._armL = walking ? (wp ? 3 : 5) : 5; this._armR = walking ? (wp ? 5 : 3) : 5;
       if (now < (this._blinkUntil || 0) && (expr === "neutral" || expr === "happy" || expr === "curious")) expr = "blink";
       tag = EMO[expr].tag;
     }
 
     this._grid = buildGrid(expr, legRows);
     this._sprite.queue_repaint();
-    const px = Math.round(this._x - S / 2 + swayX), py = Math.round(this._y - S / 2 + bob);
+    const px = Math.round(this._x - AW / 2 + swayX), py = Math.round(this._y - S / 2 + bob);
     this._sprite.set_position(px, py);
     this._sprite.set_pivot_point(0.5, 0.5);
     this._sprite.rotation_angle_z = now < (this._rollUntil || 0) ? (1 - (this._rollUntil - now) / 520) * 360

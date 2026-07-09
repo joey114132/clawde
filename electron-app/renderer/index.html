@@ -5,7 +5,7 @@
 <meta charset="utf-8">
 <style>
   html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: transparent; cursor: default; }
-  #clawde { position: fixed; z-index: 10; width: 45px; height: 45px; image-rendering: pixelated;
+  #clawde { position: fixed; z-index: 10; width: 55px; height: 45px; image-rendering: pixelated;
     transform-origin: center; filter: drop-shadow(0 3px 6px rgba(0,0,0,.45)); }
   .portal { position: fixed; z-index: 8; width: 54px; height: 30px; border-radius: 50%;
     pointer-events: none; opacity: 0;
@@ -25,7 +25,7 @@
 </style>
 </head>
 <body>
-  <canvas id="clawde" width="45" height="45"></canvas>
+  <canvas id="clawde" width="55" height="45"></canvas>
   <div id="emote"></div>
   <div id="bubble"></div>
 <script>
@@ -78,11 +78,14 @@
     return g;
   }
   const sprite = document.getElementById("clawde"), ctx = sprite.getContext("2d");
-  function draw(g) {
-    ctx.clearRect(0, 0, S, S);
+  function draw(g, armL = 5, armR = 5) {                // body at +1 col; arms swing in the outer columns
+    ctx.clearRect(0, 0, 55, 45);
     for (let r = 0; r < 9; r++) for (let c = 0; c < 9; c++) {
-      if (!g[r][c]) continue; ctx.fillStyle = g[r][c]; ctx.fillRect(c * PX, r * PX, PX, PX);
+      if (!g[r][c]) continue; ctx.fillStyle = g[r][c]; ctx.fillRect((c + 1) * PX, r * PX, PX, PX);
     }
+    ctx.fillStyle = ORANGE;
+    ctx.fillRect(0, armL * PX, PX, PX * 2);
+    ctx.fillRect(10 * PX, armR * PX, PX, PX * 2);
   }
   const emote = document.getElementById("emote"), bubble = document.getElementById("bubble");
   const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -96,7 +99,7 @@
   let holdUntil = 0, actKind = null, mood = "neutral", moodUntil = 0, hopStart = -1e9, rollUntil = 0, blinkUntil = 0, nextBlink = 900;
   let gait = "walk", walkDist = 0, tpAt = performance.now() + rand(6000, 12000);
 
-  const place = () => { sprite.style.left = (x - S / 2) + "px"; sprite.style.top = (y - S / 2) + "px"; };
+  const place = () => { sprite.style.left = (x - S * 11 / 18) + "px"; sprite.style.top = (y - S / 2) + "px"; };
   const say = t => { bubble.textContent = t; bubble.style.opacity = "1"; bubbleH = bubble.offsetHeight; bubbleUntil = performance.now() + 1700; };
   const setMood = (m, ms) => { mood = m; moodUntil = performance.now() + ms; };
   const hop = () => { hopStart = performance.now(); };
@@ -151,7 +154,7 @@
   if (window.clawde && window.clawde.onPrefs) window.clawde.onPrefs(p => {   // speed/size from the tray
     SPEED = SPEED0 * (p.speed || 1);
     S = Math.round(S0 * (p.size || 1));
-    sprite.style.width = S + "px"; sprite.style.height = S + "px";
+    sprite.style.width = Math.round(S * 11 / 9) + "px"; sprite.style.height = S + "px";
   });
   const FLEE_R = 120, FLEE_SPEED = reduce ? 5 : 9;       // run away from the cursor
   let mx = -9999, my = -9999;
@@ -180,7 +183,7 @@
         x = Math.min(Math.max(x + dcx / d * FLEE_SPEED, rr.x + S / 2), rr.x + rr.w - S / 2);
         y = Math.min(Math.max(y + dcy / d * FLEE_SPEED, rr.y + S / 2), rr.y + rr.h - S / 2);
         walkDist += FLEE_SPEED; target = newTarget(); holdUntil = 0; moodUntil = 0;
-        draw(grid("scared", LEG.scurry[Math.floor(walkDist / 5) % LEG.scurry.length]));
+        draw(grid("scared", LEG.scurry[Math.floor(walkDist / 5) % LEG.scurry.length]), 2, 2);
         sprite.style.transform = "translateX(" + Math.round(Math.sin(now / 40) * 2) + "px)";
         place();
         chrome("😱");
@@ -198,12 +201,13 @@
         x += dx / dist * sp; y += dy / dist * sp; walkDist += sp; walking = true; }
     }
 
-    let expr, legRows, bob = 0, extra = "", tag;
+    let expr, legRows, bob = 0, extra = "", tag, armL = 5, armR = 5;
     if (dancing) {
       expr = DANCE_FACES[Math.floor(now / 260) % DANCE_FACES.length];
       legRows = LEG.scurry[Math.floor(now / 90) % LEG.scurry.length];
       bob = -Math.abs(Math.sin(now / 110)) * 6;
       extra = " translateX(" + sway + "px) rotate(" + (Math.sin(now / 140) * 8).toFixed(1) + "deg)"; tag = "🎵";
+      armL = Math.floor(now / 120) % 2 ? 2 : 3; armR = Math.floor(now / 120) % 2 ? 3 : 2;
     } else {
       expr = now < moodUntil ? mood
         : now < holdUntil ? (actKind === "sleep" ? "sleepy" : actKind === "sit" ? "happy" : "curious")
@@ -212,6 +216,7 @@
       const seq = LEG[gait];
       legRows = sitting ? null : (walking ? seq[Math.floor(walkDist / 7) % seq.length] : LEG.stand[0]);
       bob = walking && Math.floor(walkDist / 7) % 2 ? (gait === "hop" ? -5 : -2) : 0;
+      const wp = Math.floor(walkDist / 7) % 2; armL = walking ? (wp ? 3 : 5) : 5; armR = walking ? (wp ? 5 : 3) : 5;
       if (EMO[expr].shake) extra += " translateX(" + Math.round(Math.sin(now / 55) * 2) + "px)";
       if (expr === "dizzy") extra += " rotate(" + (Math.sin(now / 110) * 12).toFixed(1) + "deg)";
       if (expr === "spin") extra += " rotate(" + Math.round((now / 2) % 360) + "deg)";
@@ -220,14 +225,14 @@
       tag = EMO[expr].tag;
     }
 
-    draw(grid(expr, legRows));
+    draw(grid(expr, legRows), armL, armR);
     let hopY = 0; const he = now - hopStart; if (he < 320) hopY = -Math.sin(he / 320 * Math.PI) * 8;
     sprite.style.transform = "translate(0px," + (bob + hopY) + "px)" + extra;
     place();
 
     chrome(tag);
   }
-  place(); draw(grid("neutral", LEG.stand[0])); requestAnimationFrame(frame);
+  place(); draw(grid("neutral", LEG.stand[0]), 5, 5); requestAnimationFrame(frame);
 
   // ---- click-through toggle: only Clawde catches the mouse ----
   let over = false;
