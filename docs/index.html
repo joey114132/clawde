@@ -446,8 +446,8 @@ $ gnome-extensions enable <span class="d">\</span>
   }
 
   // ---------- main loop ----------
-  let SPEED = reduce ? 1.4 : 2.3; const SPEED0 = SPEED;
-  const FLEE_R = 95, FLEE_SPEED = reduce ? 4 : 7;         // run away from the cursor
+  let SPEED = reduce ? 1.1 : 1.7; const SPEED0 = SPEED;
+  const FLEE_R = 95, FLEE_SPEED = reduce ? 3 : 5;         // run away from the cursor
   let fleeOn = localStorage.getItem("clawde-flee") !== "0";
   function applyPrefs() {
     SPEED = SPEED0 * (+localStorage.getItem("clawde-speed") || 1);
@@ -468,7 +468,7 @@ $ gnome-extensions enable <span class="d">\</span>
   let mx = -9999, my = -9999;
   // attract mode: a fake cursor plays the game itself until your real mouse moves
   const fakecur = document.getElementById("fakecur");
-  let acX = 460, acY = 200, atX = 720, atY = 250, acPounce = false, acPounceT = 0, attract = true;
+  let acX = 460, acY = 200, atX = 720, atY = 250, acPounce = false, acPounceT = 0, acRest = 0, attract = true;
   function endAttract() { if (attract) { attract = false; fakecur.style.opacity = "0"; } }
   addEventListener("mousemove", e => { mx = e.clientX; my = e.clientY; endAttract(); });
   addEventListener("mouseleave", () => { mx = my = -9999; });
@@ -486,15 +486,16 @@ $ gnome-extensions enable <span class="d">\</span>
     stage.appendChild(rp); setTimeout(() => rp.remove(), 500);
   }
   function attractStep() {
+    if (performance.now() < acRest) { placeCursor(); return; }   // breather between chases
     if (acPounce) {                                        // home on Clawde and try to catch him
       atX = x; atY = y; acPounceT++;
-      if (Math.hypot(x - acX, y - acY) < 32) { tapCursor(); if (!busy) hit(); pickTease(); placeCursor(); return; }
+      if (Math.hypot(x - acX, y - acY) < 32) { tapCursor(); if (!busy) hit(); acRest = performance.now() + 1000; pickTease(); placeCursor(); return; }
       if (acPounceT > 240) pickTease();                    // too slippery — back to teasing
     }
-    const dx = atX - acX, dy = atY - acY, d = Math.hypot(dx, dy) || 1, sp = acPounce ? 8 : 3.6;
+    const dx = atX - acX, dy = atY - acY, d = Math.hypot(dx, dy) || 1, sp = acPounce ? 6 : 3.1;
     if (!acPounce && d < sp) {
       acX = atX; acY = atY;
-      if (Math.random() < 0.55) { acPounce = true; acPounceT = 0; } else pickTease();
+      if (Math.random() < 0.4) { acPounce = true; acPounceT = 0; } else pickTease();
     } else {
       acX += dx / d * sp; acY += dy / d * sp;
       if (!acPounce && Math.random() < 0.03) pickTease();
@@ -556,7 +557,7 @@ $ gnome-extensions enable <span class="d">\</span>
       bob = -Math.abs(Math.sin(now / 110)) * 6;
       extra = " translateX(" + Math.round(Math.sin(now / 110) * 7) + "px) rotate(" + (Math.sin(now / 140) * 8).toFixed(1) + "deg)";
       tag = "🎵";
-      armL = Math.floor(now / 120) % 2 ? 2 : 3; armR = Math.floor(now / 120) % 2 ? 3 : 2;  // wave both arms
+      const adc = Math.sin(now / 180); armL = Math.round(3 - adc); armR = Math.round(3 + adc);  // gentle wave
     } else {
       expr = now < moodUntil ? mood
         : now < holdUntil ? (actKind === "sleep" ? "sleepy" : actKind === "sit" ? "happy" : "curious")
@@ -565,7 +566,7 @@ $ gnome-extensions enable <span class="d">\</span>
       const seq = LEG[gait];
       legRows = sitting ? null : (walking ? seq[Math.floor(walkDist / 7) % seq.length] : LEG.stand[0]);
       bob = walking ? (Math.floor(walkDist / 7) % 2 ? (gait === "hop" ? -5 : -2) : 0) : 0;
-      const wp = Math.floor(walkDist / 7) % 2; armL = walking ? (wp ? 3 : 5) : 5; armR = walking ? (wp ? 5 : 3) : 5;  // pump opposite
+      const asw = Math.sin(walkDist / 11) * 1.3; armL = walking ? Math.round(4 - asw) : 5; armR = walking ? Math.round(4 + asw) : 5;  // smooth swing
       if (EMO[expr].shake) extra += " translateX(" + Math.round(Math.sin(now / 55) * 2) + "px)";
       if (expr === "dizzy") extra += " rotate(" + (Math.sin(now / 110) * 12).toFixed(1) + "deg)";
       if (expr === "spin") extra += " rotate(" + Math.round((now / 2) % 360) + "deg)";

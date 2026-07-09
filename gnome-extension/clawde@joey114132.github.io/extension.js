@@ -54,7 +54,7 @@ const TERMINALS = ["terminal", "terminator", "ghostty", "kitty", "alacritty",
   "konsole", "xterm", "wezterm", "foot", "tilix", "rio", "contour"];
 
 const PX = 3, S = PX * 9, AW = 11 * PX;   // 27px body; 33px incl. arms in the outer columns
-const TICK_MS = 80, SPEED = 5;
+const TICK_MS = 80, SPEED = 4;
 const TP_MIN = 6000, TP_MAX = 13000, BUBBLE_MS = 1800;
 const pick = a => a[Math.floor(Math.random() * a.length)];
 const rand = (a, b) => a + Math.random() * (b - a);
@@ -246,7 +246,7 @@ export default class ClawdeExtension extends Extension {
     const [ptrX, ptrY] = global.get_pointer();
     const dcx = this._x - ptrX, dcy = this._y - ptrY, dc = Math.hypot(dcx, dcy);
     if (dc < 90) {
-      const rr = this._roam(), d = dc || 1, sp = 9 * (this._speedMul || 1);
+      const rr = this._roam(), d = dc || 1, sp = 6 * (this._speedMul || 1);
       this._x = Math.min(Math.max(this._x + dcx / d * sp, rr.x + S / 2), rr.x + rr.w - S / 2);
       this._y = Math.min(Math.max(this._y + dcy / d * sp, rr.y + S / 2), rr.y + rr.h - S / 2);
       this._walkDist += sp; this._holdUntil = 0; this._moodUntil = 0;
@@ -279,7 +279,7 @@ export default class ClawdeExtension extends Extension {
       expr = DANCE_FACES[Math.floor(now / 260) % DANCE_FACES.length];
       legRows = LEG.scurry[Math.floor(now / 90) % LEG.scurry.length];
       bob = -Math.round(Math.abs(Math.sin(now / 110)) * 5); tag = "🎵";
-      this._armL = Math.floor(now / 120) % 2 ? 2 : 3; this._armR = Math.floor(now / 120) % 2 ? 3 : 2;
+      const adc = Math.sin(now / 180); this._armL = Math.round(3 - adc); this._armR = Math.round(3 + adc);
     } else {
       expr = now < this._moodUntil ? this._mood
         : now < this._holdUntil ? (this._actKind === "sleep" ? "sleepy" : this._actKind === "sit" ? "happy" : "curious")
@@ -288,7 +288,7 @@ export default class ClawdeExtension extends Extension {
       const seq = LEG[this._gait];
       legRows = sitting ? null : (walking ? seq[Math.floor(this._walkDist / 7) % seq.length] : LEG.stand[0]);
       bob = walking && Math.floor(this._walkDist / 7) % 2 ? (this._gait === "hop" ? -4 : -2) : 0;
-      const wp = Math.floor(this._walkDist / 7) % 2; this._armL = walking ? (wp ? 3 : 5) : 5; this._armR = walking ? (wp ? 5 : 3) : 5;
+      const asw = Math.sin(this._walkDist / 11) * 1.3; this._armL = walking ? Math.round(4 - asw) : 5; this._armR = walking ? Math.round(4 + asw) : 5;
       if (now < (this._blinkUntil || 0) && (expr === "neutral" || expr === "happy" || expr === "curious")) expr = "blink";
       tag = EMO[expr].tag;
     }

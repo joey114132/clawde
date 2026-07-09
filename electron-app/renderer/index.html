@@ -150,13 +150,13 @@
     holdUntil = now + (actKind === "sleep" ? 2800 : actKind === "look" ? 1000 : 1300);
   }
 
-  let SPEED = reduce ? 1.6 : 2.6; const SPEED0 = SPEED, S0 = PX * 9;
+  let SPEED = reduce ? 1.3 : 2.0; const SPEED0 = SPEED, S0 = PX * 9;
   if (window.clawde && window.clawde.onPrefs) window.clawde.onPrefs(p => {   // speed/size from the tray
     SPEED = SPEED0 * (p.speed || 1);
     S = Math.round(S0 * (p.size || 1));
     sprite.style.width = Math.round(S * 11 / 9) + "px"; sprite.style.height = S + "px";
   });
-  const FLEE_R = 120, FLEE_SPEED = reduce ? 5 : 9;       // run away from the cursor
+  const FLEE_R = 120, FLEE_SPEED = reduce ? 4 : 6;       // run away from the cursor
   let mx = -9999, my = -9999;
   function chrome(tag) {                                  // keep emote + cloud pinned to Clawde every frame
     const head = y - S / 2;
@@ -207,7 +207,7 @@
       legRows = LEG.scurry[Math.floor(now / 90) % LEG.scurry.length];
       bob = -Math.abs(Math.sin(now / 110)) * 6;
       extra = " translateX(" + sway + "px) rotate(" + (Math.sin(now / 140) * 8).toFixed(1) + "deg)"; tag = "🎵";
-      armL = Math.floor(now / 120) % 2 ? 2 : 3; armR = Math.floor(now / 120) % 2 ? 3 : 2;
+      const adc = Math.sin(now / 180); armL = Math.round(3 - adc); armR = Math.round(3 + adc);
     } else {
       expr = now < moodUntil ? mood
         : now < holdUntil ? (actKind === "sleep" ? "sleepy" : actKind === "sit" ? "happy" : "curious")
@@ -216,7 +216,7 @@
       const seq = LEG[gait];
       legRows = sitting ? null : (walking ? seq[Math.floor(walkDist / 7) % seq.length] : LEG.stand[0]);
       bob = walking && Math.floor(walkDist / 7) % 2 ? (gait === "hop" ? -5 : -2) : 0;
-      const wp = Math.floor(walkDist / 7) % 2; armL = walking ? (wp ? 3 : 5) : 5; armR = walking ? (wp ? 5 : 3) : 5;
+      const asw = Math.sin(walkDist / 11) * 1.3; armL = walking ? Math.round(4 - asw) : 5; armR = walking ? Math.round(4 + asw) : 5;
       if (EMO[expr].shake) extra += " translateX(" + Math.round(Math.sin(now / 55) * 2) + "px)";
       if (expr === "dizzy") extra += " rotate(" + (Math.sin(now / 110) * 12).toFixed(1) + "deg)";
       if (expr === "spin") extra += " rotate(" + Math.round((now / 2) % 360) + "deg)";
