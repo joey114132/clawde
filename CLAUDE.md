@@ -6,7 +6,9 @@ A Claude Code mascot ("Clawde") that wanders around while you work.
 
 - **Terminal** (`clawde.py`, done): ANSI in the alternate screen buffer. One pane.
 - **GNOME Shell extension** (`gnome-extension/`, built): runs inside gnome-shell, so
-  the sprite floats over every window/tab/app across all workspaces — the only way to
+  the sprite floats above every window — but `_terminalWindows()` only ever returns
+  terminal-classed windows (no fallback to other apps/desktop), so it's confined to
+  terminals/tabs across all workspaces, hidden when none are open. The only way to
   roam across separate terminals/tabs on GNOME Wayland. Written for GNOME 46 (ESM);
   needs live-shell testing (can't be verified headlessly).
 - **VS Code panel** (`vscode-extension/`, built): a webview-panel Clawde. Sandboxed —

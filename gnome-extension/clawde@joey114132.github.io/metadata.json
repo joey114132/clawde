@@ -1,7 +1,7 @@
 {
   "uuid": "clawde@joey114132.github.io",
   "name": "Clawde",
-  "description": "A Claude Code mascot that wanders over your whole desktop — every terminal, its tabs, Terminator, Ghostty, VS Code, the panel, all workspaces. Because it runs inside GNOME Shell, it floats above everything and passes clicks straight through.",
+  "description": "A Claude Code mascot that wanders inside your terminal windows — every terminal, its tabs, Terminator/split panes, across all workspaces. Because it runs inside GNOME Shell, it floats above your terminals and passes clicks straight through. Hides itself when no terminal is open.",
   "shell-version": ["45", "46", "47", "48"],
   "url": "https://github.com/joey114132/clawde",
   "settings-schema": "org.gnome.shell.extensions.clawde",

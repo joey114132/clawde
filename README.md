@@ -69,15 +69,16 @@ He is not useful. That is entirely the point — he's just here to keep you comp
 
 | where | runs on | what he does |
 |---|---|---|
-| 🖥️ **GNOME Shell** — [`gnome-extension/`](gnome-extension/) | Linux · GNOME | roams over **every** terminal, tab, and app across your whole desktop |
-| 💻 **Desktop app** — [`electron-app/`](electron-app/) | **Windows · macOS** · Linux | the same "over everything" pet for Win/Mac — wanders your whole screen, **auto-starts at login** |
+| 🖥️ **GNOME Shell** — [`gnome-extension/`](gnome-extension/) | Linux · GNOME | roams **only inside your terminal windows** — every terminal + tab, across your whole desktop, never over other apps or bare desktop |
+| 💻 **Desktop app** — [`electron-app/`](electron-app/) | **Windows · macOS** · Linux | the "over everything" pet for Win/Mac — wanders your whole screen, **auto-starts at login** |
 | 🐍 **Terminal** — [`clawde.py`](clawde.py) | Windows · macOS · Linux | a pure-Python Clawde in one terminal pane, zero deps, any shell |
 | 🧩 **VS Code** — [`vscode-extension/`](vscode-extension/) | Windows · macOS · Linux | Clawde in a little panel beside your code |
 
-> **Want him roaming over *everything*?** On Linux that's the **GNOME extension** (runs
-> inside the compositor). On **Windows / macOS** it's the **desktop app** — download the
-> installer, run it once, and Clawde auto-appears at every login. Same pet, different
-> wrapper, because Win/Mac have no shell-extension model.
+> **Want him hopping between every terminal on your desktop?** On Linux that's the
+> **GNOME extension** (runs inside the compositor, stays confined to terminal windows).
+> On **Windows / macOS**, where there's no shell-extension model, the **desktop app**
+> roams the whole screen instead — download the installer, run it once, and Clawde
+> auto-appears at every login.
 
 ## install 📦
 

@@ -1,6 +1,7 @@
 // Clawde — a Claude Code mascot that wanders inside your terminal windows with moods,
 // a diverse gait, the odd dance and meme, and teleports between terminals. Runs inside
-// GNOME Shell (a desktop overlay), so it floats above every window and auto-starts at login.
+// GNOME Shell (a desktop overlay), so it floats above your terminal windows only — never
+// over other apps or the bare desktop — and auto-starts at login.
 import St from 'gi://St';
 import Clutter from 'gi://Clutter';
 import GLib from 'gi://GLib';
@@ -126,9 +127,8 @@ export default class ClawdeExtension extends Extension {
     const ws = global.workspace_manager.get_active_workspace();
     const normal = global.get_window_actors().map(a => a.meta_window)
       .filter(w => w && !w.minimized && w.get_window_type() === Meta.WindowType.NORMAL && w.located_on_workspace(ws));
-    const terms = normal.filter(w => { const cls = (w.get_wm_class() || "").toLowerCase();
+    let out = normal.filter(w => { const cls = (w.get_wm_class() || "").toLowerCase();
       return TERMINALS.some(t => cls.includes(t)); });
-    let out = terms.length ? terms : normal;
     if (this._monitor >= 0) { const m = out.filter(w => w.get_monitor() === this._monitor); if (m.length) out = m; }
     return out;
   }
