@@ -16,7 +16,8 @@ A Claude Code mascot ("Clawde") that wanders around while you work.
 
 ```bash
 python3 clawde.py            # run it (Ctrl-C to quit)
-python3 clawde.py --speed 0.2 --no-color
+python3 clawde.py --speed 0.2 --no-color   # --speed: lower = faster
+python3 clawde.py --size big               # bigger 3-line sprite
 python3 clawde.py --selftest # pure-logic checks, no animation
 python3 clawde.py --frames 5 # run N frames then exit (smoke test / CI)
 python3 clawde.py --tmux     # one status-bar frame (for tmux status-right)

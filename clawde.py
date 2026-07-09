@@ -3,7 +3,7 @@
 
     python3 clawde.py            # macOS / Linux   (Ctrl-C to quit)
     py clawde.py                 # Windows (PowerShell / cmd)
-    python3 clawde.py --speed 0.2
+    python3 clawde.py --speed 0.2 --size big
     python3 clawde.py --selftest # logic check, no animation
     python3 clawde.py --tmux     # one-line Clawde for the tmux status bar
 
@@ -27,11 +27,19 @@ RESET = "\x1b[0m"
 ALT_ON, ALT_OFF = "\x1b[?1049h", "\x1b[?1049l"
 HIDE, SHOW = "\x1b[?25l", "\x1b[?25h"
 
-# One-line sprites per state; two phases each so legs/eyes animate.
-FRAMES = {
-    "walk": ["(◕ᴥ◕)", "(>ᴥ<)"],
-    "idle": ["(-ᴥ-)", "(．ᴥ．)"],
-    "dart": ["=(◔ᴥ◔)", "(◔ᴥ◔)="],
+# Sprites per state; two phases each so legs/eyes animate. --size picks the set.
+# Each phase is a list of lines (small = 1 line, big = 3 lines, feet shuffle to "walk").
+SPRITES = {
+    "small": {
+        "walk": [["(◕ᴥ◕)"], ["(>ᴥ<)"]],
+        "idle": [["(-ᴥ-)"], ["(．ᴥ．)"]],
+        "dart": [["=(◔ᴥ◔)"], ["(◔ᴥ◔)="]],
+    },
+    "big": {
+        "walk": [["▛▀▀▀▜", "▌◕ᴥ◕▐", "▙▄█▄▟"], ["▛▀▀▀▜", "▌>ᴥ<▐", "▙█▄█▟"]],
+        "idle": [["▛▀▀▀▜", "▌-ᴥ-▐", "▙▄█▄▟"], ["▛▀▀▀▜", "▌˘ᴥ˘▐", "▙▄█▄▟"]],
+        "dart": [["▛▀▀▀▜", "▌◔ᴥ◔▐", "▙▄█▄▟"], ["▛▀▀▀▜", "▌◔ᴥ◔▐", "▙█▄█▟"]],
+    },
 }
 # ponytail: generous fixed erase width covers any ambiguous double-width glyph.
 ERASE_W = 8
@@ -65,19 +73,22 @@ def step_toward(pos, target, step=1):
     return (mv(x, tx), mv(y, ty))
 
 
-def pick_target(w, h):
-    return (random.randint(0, max(0, w - ERASE_W)), random.randint(0, max(0, h - 1)))
+def pick_target(w, h, bottom=1):
+    return (random.randint(0, max(0, w - ERASE_W)), random.randint(0, max(0, h - bottom)))
 
 
 def _at(x, y):
     return f"\x1b[{y + 1};{x + 1}H"  # terminal cursor is 1-based
 
 
-def run(speed=0.12, color=True, max_frames=None):
+def run(speed=0.12, color=True, size="small", max_frames=None):
+    sprites = SPRITES.get(size, SPRITES["small"])
+    ht = len(sprites["idle"][0])                        # rows tall: small=1, big=3
     w, h = shutil.get_terminal_size((80, 24))
-    x, y = w // 2, h // 2
+    x, y = w // 2, max(0, h // 2 - ht // 2)
     state, phase, idle_ticks = "walk", 0, 0
-    target = pick_target(w, h)
+    target = pick_target(w, h, ht)
+    on, off = (ORANGE, RESET) if color else ("", "")
     out = sys.stdout
     out.write(ALT_ON + HIDE)
     out.flush()
@@ -85,32 +96,32 @@ def run(speed=0.12, color=True, max_frames=None):
         frame = 0
         while max_frames is None or frame < max_frames:
             w, h = shutil.get_terminal_size((80, 24))  # honor live resize
-            x, y = clamp(x, 0, max(0, w - ERASE_W)), clamp(y, 0, max(0, h - 1))
+            x, y = clamp(x, 0, max(0, w - ERASE_W)), clamp(y, 0, max(0, h - ht))
 
             # small chance to bolt off in a hurry — the "runaway"
             if state != "dart" and random.random() < 0.02:
-                state, target = "dart", pick_target(w, h)
+                state, target = "dart", pick_target(w, h, ht)
 
             if (x, y) == target:
                 if state == "dart":
                     state = "walk"
                 elif random.random() < 0.25:
                     state, idle_ticks = "idle", random.randint(4, 12)
-                target = pick_target(w, h)
+                target = pick_target(w, h, ht)
 
             if state == "idle":
                 idle_ticks -= 1
                 if idle_ticks <= 0:
-                    state, target = "walk", pick_target(w, h)
+                    state, target = "walk", pick_target(w, h, ht)
                 newpos = (x, y)
             else:
                 newpos = step_toward((x, y), target, step=3 if state == "dart" else 1)
 
-            erase = _at(x, y) + " " * ERASE_W
+            erase = "".join(_at(x, y + i) + " " * ERASE_W for i in range(ht))
             x, y = newpos
             phase ^= 1
-            sprite = FRAMES[state][phase % len(FRAMES[state])]
-            draw = _at(x, y) + (ORANGE if color else "") + sprite + (RESET if color else "")
+            lines = sprites[state][phase % len(sprites[state])]
+            draw = "".join(_at(x, y + i) + on + line + off for i, line in enumerate(lines))
             out.write(erase + draw)
             out.flush()
             frame += 1
@@ -134,6 +145,10 @@ def selftest():
     assert _tmux_step(5, 1, 5) == (5, -1)       # bounce at the right edge
     assert _tmux_step(0, -1, 5) == (0, 1)        # bounce at the left edge
     assert _tmux_step(3, 1, 5) == (4, 1)
+    for name, states in SPRITES.items():                 # every sprite frame's lines must align
+        for st, frames in states.items():
+            for fr in frames:
+                assert len(set(len(line) for line in fr)) == 1, f"{name}/{st} lines misaligned"
     print("selftest ok")
 
 
@@ -212,7 +227,8 @@ def _enable_ansi():
 
 def main():
     ap = argparse.ArgumentParser(description="Clawde — a Claude Code terminal mascot.")
-    ap.add_argument("--speed", type=float, default=0.12, help="seconds per frame")
+    ap.add_argument("--speed", type=float, default=0.12, help="seconds per frame (lower = faster)")
+    ap.add_argument("--size", choices=["small", "big"], default="small", help="sprite size")
     ap.add_argument("--no-color", action="store_true", help="disable orange")
     ap.add_argument("--frames", type=int, default=None, help="run N frames then exit (testing)")
     ap.add_argument("--selftest", action="store_true", help="run logic checks and exit")
@@ -232,7 +248,7 @@ def main():
     except (ValueError, OSError, AttributeError):
         pass  # SIGTERM not settable on every platform; Ctrl-C still restores via finally
     try:
-        run(speed=a.speed, color=not a.no_color, max_frames=a.frames)
+        run(speed=a.speed, color=not a.no_color, size=a.size, max_frames=a.frames)
     except KeyboardInterrupt:
         pass
 

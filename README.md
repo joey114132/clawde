@@ -122,8 +122,10 @@ cd clawde/gnome-extension && ./install.sh   # then log out / back in
 ### 🐍 Any OS — the terminal one (no install)
 
 ```bash
-python3 clawde.py     # macOS / Linux — any shell (zsh, bash, fish)
-py clawde.py          # Windows — PowerShell or cmd
+python3 clawde.py                 # macOS / Linux — any shell (zsh, bash, fish)
+py clawde.py                      # Windows — PowerShell or cmd
+python3 clawde.py --size big      # a chunkier 3-line Clawde
+python3 clawde.py --speed 0.06    # move faster (lower = faster)
 ```
 
 Python 3.8+, zero dependencies, runs from any shell. On Windows he auto-enables VT so the
