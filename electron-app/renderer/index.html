@@ -5,16 +5,16 @@
 <meta charset="utf-8">
 <style>
   html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: transparent; cursor: default; }
-  #clawde { position: fixed; z-index: 10; width: 55px; height: 45px; image-rendering: pixelated;
+  #clawde { position: fixed; z-index: 10; width: 72px; height: 58px; image-rendering: pixelated;
     transform-origin: center; filter: drop-shadow(0 3px 6px rgba(0,0,0,.45)); }
-  .portal { position: fixed; z-index: 8; width: 54px; height: 30px; border-radius: 50%;
+  .portal { position: fixed; z-index: 8; width: 68px; height: 38px; border-radius: 50%;
     pointer-events: none; opacity: 0;
     background: radial-gradient(closest-side, rgba(255,225,190,.95), #e8975f 58%, #c2683f 76%, transparent 84%);
     box-shadow: 0 0 22px 6px rgba(217,138,99,.55); }
-  #emote { position: fixed; z-index: 11; font-size: 20px; pointer-events: none; opacity: 0;
-    transition: opacity .12s; filter: drop-shadow(0 1px 2px rgba(0,0,0,.5)); }
+  #emote { position: fixed; z-index: 11; font-size: 22px; pointer-events: none; opacity: 0;
+    transition: opacity .12s; filter: drop-shadow(0 1px 2px rgba(0,0,0,.5)); white-space: nowrap; }
   #bubble { position: fixed; z-index: 12; background: #fff; color: #16202b;
-    font: 600 13px system-ui, sans-serif; padding: 4px 10px; border-radius: 13px;
+    font: 600 14px system-ui, sans-serif; padding: 5px 11px; border-radius: 13px;
     white-space: nowrap; opacity: 0; transition: opacity .12s; pointer-events: none;
     box-shadow: 0 4px 12px rgba(0,0,0,.3); }
   #bubble::before { content: ""; position: absolute; z-index: -1; left: 10px; right: 10px; top: -4px;
@@ -25,7 +25,7 @@
 </style>
 </head>
 <body>
-  <canvas id="clawde" width="55" height="45"></canvas>
+  <canvas id="clawde" width="72" height="58"></canvas>
   <div id="emote"></div>
   <div id="bubble"></div>
 <script>
@@ -67,7 +67,8 @@
     hop:    [["010101010","010101010"],["000000000","010101010"]],
     stand:  [["010101010","010101010"]],
   };
-  const PX = 5; let S = PX * 9;
+  const PX = 6; let S = PX * 9;
+  const AW = PX * 11;   // 팔 포함 전체 폭
   const pick = a => a[Math.floor(Math.random() * a.length)];
   const rand = (a, b) => a + Math.random() * (b - a);
 
@@ -79,8 +80,8 @@
     return g;
   }
   const sprite = document.getElementById("clawde"), ctx = sprite.getContext("2d");
-  function draw(g, armL = 5, armR = 5) {                // body at +1 col; arms swing in the outer columns
-    ctx.clearRect(0, 0, 55, 45);
+  function draw(g, armL = 5, armR = 5) {
+    ctx.clearRect(0, 0, AW, S);
     for (let r = 0; r < 9; r++) for (let c = 0; c < 9; c++) {
       if (!g[r][c]) continue; ctx.fillStyle = g[r][c]; ctx.fillRect((c + 1) * PX, r * PX, PX, PX);
     }
@@ -91,16 +92,30 @@
   const emote = document.getElementById("emote"), bubble = document.getElementById("bubble");
   const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-  const roam = () => ({ x: 30, y: 30, w: Math.max(20, innerWidth - 60), h: Math.max(20, innerHeight - 60) });
-  const newTarget = () => { const rr = roam(), m = S / 2;
+  const roam = (r) => {
+    if (!r) return { x: 30, y: 30, w: 20, h: 20 };
+    const padX = 28, padTop = 48, padBot = 24;
+    return { x: r.x + padX, y: r.y + padTop, w: Math.max(16, r.w - 2 * padX), h: Math.max(16, r.h - padTop - padBot) };
+  };
+  const newTarget = (rr) => { const m = S / 2;
     return { x: rr.x + m + Math.random() * Math.max(1, rr.w - 2 * m), y: rr.y + m + Math.random() * Math.max(1, rr.h - 2 * m) }; };
 
-  let t0 = newTarget();
-  let x = t0.x, y = t0.y, target = newTarget(), busy = false, bubbleUntil = 0, bubbleH = 24;
+  let WINS = [], wi = 0;   // 열린 터미널 창 목록 (main 프로세스가 주기적으로 갱신)
+  if (window.clawde && window.clawde.onTerminals) window.clawde.onTerminals(rects => {
+    WINS = rects || [];
+    if (!WINS.length) { sprite.style.visibility = "hidden"; emote.style.opacity = "0"; bubble.style.opacity = "0"; return; }
+    sprite.style.visibility = "visible";
+    if (wi >= WINS.length) wi = 0;
+    const rr = roam(WINS[wi]);
+    x = Math.min(Math.max(x, rr.x + S / 2), rr.x + rr.w - S / 2);
+    y = Math.min(Math.max(y, rr.y + S / 2), rr.y + rr.h - S / 2);
+  });
+
+  let x = innerWidth / 2, y = innerHeight / 2, target = { x, y }, busy = false, bubbleUntil = 0, bubbleH = 24;
   let holdUntil = 0, actKind = null, mood = "neutral", moodUntil = 0, hopStart = -1e9, rollUntil = 0, blinkUntil = 0, nextBlink = 900;
   let gait = "walk", walkDist = 0, tpAt = performance.now() + rand(6000, 12000);
 
-  const place = () => { sprite.style.left = (x - S * 11 / 18) + "px"; sprite.style.top = (y - S / 2) + "px"; };
+  const place = () => { sprite.style.left = (x - AW / 2) + "px"; sprite.style.top = (y - S / 2) + "px"; };
   const say = t => { bubble.textContent = t; bubble.style.opacity = "1"; bubbleH = bubble.offsetHeight; bubbleUntil = performance.now() + 1700; };
   const setMood = (m, ms) => { mood = m; moodUntil = performance.now() + ms; };
   const hop = () => { hopStart = performance.now(); };
@@ -121,29 +136,32 @@
   // ---- portal teleport to a random spot on screen ----
   const anim = (el, kf, ms) => el.animate(kf, { duration: ms, easing: "ease-out", fill: "forwards" }).finished;
   const portal = (cx, cy) => { const p = document.createElement("div"); p.className = "portal";
-    p.style.left = (cx - 27) + "px"; p.style.top = (cy - 15) + "px"; document.body.appendChild(p); return p; };
+    p.style.left = (cx - 34) + "px"; p.style.top = (cy - 19) + "px"; document.body.appendChild(p); return p; };
   const openP = async p => { if (reduce) { p.style.opacity = "1"; return; }
     await anim(p, [{ transform: "scale(0) rotate(0)", opacity: 0 }, { transform: "scale(1) rotate(200deg)", opacity: 1 }], 220); };
   const closeP = async p => { if (!reduce)
     await anim(p, [{ transform: "scale(1) rotate(200deg)", opacity: 1 }, { transform: "scale(0) rotate(360deg)", opacity: 0 }], 180); p.remove(); };
 
   async function teleport() {
-    if (busy) return; busy = true; emote.style.opacity = "0"; bubble.style.opacity = "0"; bubbleUntil = 0;
+    if (busy || !WINS.length) return; busy = true; emote.style.opacity = "0"; bubble.style.opacity = "0"; bubbleUntil = 0;
     const pA = portal(x, y); await openP(pA);
-    if (!reduce) await anim(sprite, [{ transform: "scale(1)", opacity: 1 }, { transform: "scale(0)", opacity: .2 }], 200);
+    if (!reduce) await anim(sprite, [{ transform: "scale(1) rotate(0deg)", opacity: 1 }, { transform: "scale(0) rotate(180deg)", opacity: .15 }], 220);
     sprite.style.visibility = "hidden"; await closeP(pA);
-    const t = newTarget(); x = t.x; y = t.y; target = newTarget(); newGait(); place();
+    let n; do { n = Math.floor(Math.random() * WINS.length); } while (n === wi && WINS.length > 1);
+    wi = n;
+    const rr = roam(WINS[wi]); const t = newTarget(rr); x = t.x; y = t.y; target = newTarget(rr); newGait(); place();
     const pB = portal(x, y); await openP(pB); sprite.style.visibility = "visible";
-    if (!reduce) await anim(sprite, [{ transform: "scale(0)", opacity: .2 }, { transform: "scale(1)", opacity: 1 }], 240);
-    sprite.style.transform = ""; await closeP(pB);
+    if (!reduce) await anim(sprite, [{ transform: "scale(0) rotate(-180deg)", opacity: .15 }, { transform: "scale(1.12) rotate(0deg)", opacity: 1 }, { transform: "scale(1)", opacity: 1 }], 320);
+    sprite.style.transform = ""; hop(); await closeP(pB);
     mood = "neutral"; moodUntil = 0; holdUntil = 0; tpAt = performance.now() + rand(6000, 12000); busy = false;
   }
 
   function decide(now) {
-    if (Math.random() < 0.42) { target = newTarget(); newGait(); return; }
+    if (!WINS.length) return;
+    if (Math.random() < 0.42) { target = newTarget(roam(WINS[wi])); newGait(); return; }
     const r = Math.random();
     if (r < 0.12) { startDance(); return; }
-    if (r < 0.20) { rollUntil = now + 520; hop(); target = newTarget(); return; }  // barrel roll
+    if (r < 0.20) { rollUntil = now + 520; hop(); target = newTarget(roam(WINS[wi])); return; }  // barrel roll
     if (r < 0.24) { setMood(pick(["deadpan", "dead", "sus", "cool"]), 1100); say(pick(MEMES)); actKind = "look"; holdUntil = now + 1200; return; }
     if (r < 0.36) { setMood("surprise", 550); actKind = "look"; holdUntil = now + 750; return; }
     if (r < 0.50) { setMood(pick(FLAVORS), 900); actKind = "look"; holdUntil = now + 950; return; }
@@ -152,26 +170,32 @@
   }
 
   let SPEED = reduce ? 1.3 : 2.0; const SPEED0 = SPEED, S0 = PX * 9;
-  if (window.clawde && window.clawde.onPrefs) window.clawde.onPrefs(p => {   // speed/size from the tray
+  if (window.clawde && window.clawde.onPrefs) window.clawde.onPrefs(p => {
+    const mul = p.size || 1.35;
     SPEED = SPEED0 * (p.speed || 1);
-    S = Math.round(S0 * (p.size || 1));
-    sprite.style.width = Math.round(S * 11 / 9) + "px"; sprite.style.height = S + "px";
+    S = Math.round(S0 * mul);
+    sprite.style.width = Math.round(AW * mul) + "px";
+    sprite.style.height = Math.round(S0 * mul) + "px";
   });
-  const FLEE_R = 120, FLEE_SPEED = reduce ? 4 : 6;       // run away from the cursor
+  const FLEE_R = 120, FLEE_SPEED = reduce ? 4 : 6;
   let mx = -9999, my = -9999;
-  function chrome(tag) {                                  // keep emote + cloud pinned to Clawde every frame
-    const head = y - S / 2;
+  // 표정·말풍선을 Clawde 오른쪽 위에 고정
+  function chrome(tag) {
+    const left = x - AW / 2, top = y - S / 2, right = left + AW;
     if (tag) { if (emote.textContent !== tag) emote.textContent = tag; emote.style.opacity = "1";
-      emote.style.left = (x - 5) + "px"; emote.style.top = (head - 20) + "px"; }
-    else emote.style.opacity = "0";
+      emote.style.left = (right - 4) + "px"; emote.style.top = (top - 22) + "px";
+      emote.style.transform = "translateX(-100%)"; }
+    else { emote.style.opacity = "0"; emote.style.transform = ""; }
     if (bubbleUntil) {
-      bubble.style.left = Math.max(4, x - 12) + "px";
-      bubble.style.top = (head - bubbleH - (tag ? 16 : 8)) + "px";
-      if (performance.now() > bubbleUntil) { bubble.style.opacity = "0"; bubbleUntil = 0; }
+      bubble.style.left = (right - 6) + "px"; bubble.style.top = (top - bubbleH - (tag ? 20 : 10)) + "px";
+      bubble.style.transform = "translateX(-100%)";
+      if (performance.now() > bubbleUntil) { bubble.style.opacity = "0"; bubbleUntil = 0; bubble.style.transform = ""; }
     }
   }
   function frame(now) {
     requestAnimationFrame(frame);
+    if (!WINS.length) { sprite.style.visibility = "hidden"; return; }
+    sprite.style.visibility = busy ? sprite.style.visibility : "visible";
     if (now > nextBlink) { blinkUntil = now + 110; nextBlink = now + 1800 + Math.random() * 3200; }
     if (busy) return;
     if (now >= tpAt) { teleport(); return; }
@@ -180,10 +204,10 @@
     if (mx > -9000) {
       const dcx = x - mx, dcy = y - my, dc = Math.hypot(dcx, dcy);
       if (dc < FLEE_R) {
-        const rr = roam(), d = dc || 1;
+        const rr = roam(WINS[wi]), d = dc || 1;
         x = Math.min(Math.max(x + dcx / d * FLEE_SPEED, rr.x + S / 2), rr.x + rr.w - S / 2);
         y = Math.min(Math.max(y + dcy / d * FLEE_SPEED, rr.y + S / 2), rr.y + rr.h - S / 2);
-        walkDist += FLEE_SPEED; target = newTarget(); holdUntil = 0; moodUntil = 0;
+        walkDist += FLEE_SPEED; target = newTarget(rr); holdUntil = 0; moodUntil = 0;
         draw(grid("scared", LEG.scurry[Math.floor(walkDist / 5) % LEG.scurry.length]), 2, 2);
         sprite.style.transform = "translateX(" + Math.round(Math.sin(now / 40) * 2) + "px)";
         place();
@@ -240,7 +264,7 @@
   addEventListener("mousemove", (e) => {
     mx = e.clientX; my = e.clientY;
     const pad = 6;
-    const isOver = e.clientX >= x - S / 2 - pad && e.clientX <= x + S / 2 + pad &&
+    const isOver = e.clientX >= x - AW / 2 - pad && e.clientX <= x + AW / 2 + pad &&
                    e.clientY >= y - S / 2 - pad && e.clientY <= y + S / 2 + pad;
     if (isOver !== over) { over = isOver; window.clawde && window.clawde.setIgnore(!isOver); }
   });

@@ -52,10 +52,13 @@ const LEG = {
   hop:    [["010101010","010101010"],["000000000","010101010"]],
   stand:  [["010101010","010101010"]],
 };
-const TERMINALS = ["terminal", "terminator", "ghostty", "kitty", "alacritty",
-  "konsole", "xterm", "wezterm", "foot", "tilix", "rio", "contour"];
+const TERMINALS = ["terminal", "gnome-terminal", "org.gnome.terminal", "org.gnome.console",
+  "terminator", "ghostty", "kitty", "alacritty", "konsole", "xterm", "wezterm",
+  "foot", "tilix", "rio", "contour", "hyper", "iterm", "tabby",
+  "powershell", "pwsh", "windowsterminal", "windows terminal",
+  "com.apple.terminal", "com.googlecode.iterm2"];
 
-const PX = 3, S = PX * 9, AW = 11 * PX;   // 27px body; 33px incl. arms in the outer columns
+const PX = 4, S = PX * 9, AW = 11 * PX;   // 기본 스프라이트를 더 크게 (36px body)
 const TICK_MS = 80, SPEED = 4;
 const TP_MIN = 6000, TP_MAX = 13000, BUBBLE_MS = 1800;
 const pick = a => a[Math.floor(Math.random() * a.length)];
@@ -78,19 +81,19 @@ export default class ClawdeExtension extends Extension {
     this._holdUntil = 0; this._actKind = null;
     this._gait = "walk"; this._walkDist = 0;
     this._bubbleUntil = 0; this._win = null;
+    this._tpBusy = false; this._tpPhase = 0; this._tpNext = null; this._portals = [];
 
     this._sprite = new St.DrawingArea({ width: AW, height: S, reactive: true });
     this._sprite.connect("repaint", area => this._paint(area));
     this._clickId = this._sprite.connect("button-press-event", () => { this._poke(); return Clutter.EVENT_STOP; });
     Main.layoutManager.uiGroup.add_child(this._sprite);
 
-    this._emote = new St.Label({ text: "", style: "font-size: 14px;", reactive: false });
+    this._emote = new St.Label({ text: "", style: "font-size: 18px;", reactive: false });
     this._emote.opacity = 0;
     Main.layoutManager.uiGroup.add_child(this._emote);
 
     this._pickWindow();
-    const m = Main.layoutManager.primaryMonitor;
-    if (!this._win) { this._x = m.x + m.width / 2; this._y = m.y + m.height / 2; }
+    this._x = 0; this._y = 0;
     this._target = this._newTarget();
     this._tpAt = Date.now() + rand(TP_MIN, TP_MAX);
 
@@ -127,8 +130,10 @@ export default class ClawdeExtension extends Extension {
     const ws = global.workspace_manager.get_active_workspace();
     const normal = global.get_window_actors().map(a => a.meta_window)
       .filter(w => w && !w.minimized && w.get_window_type() === Meta.WindowType.NORMAL && w.located_on_workspace(ws));
-    let out = normal.filter(w => { const cls = (w.get_wm_class() || "").toLowerCase();
-      return TERMINALS.some(t => cls.includes(t)); });
+    let out = normal.filter(w => {
+      const cls = ((w.get_wm_class() || "") + " " + (w.get_wm_class_instance() || "")).toLowerCase();
+      return TERMINALS.some(t => cls.includes(t));
+    });
     if (this._monitor >= 0) { const m = out.filter(w => w.get_monitor() === this._monitor); if (m.length) out = m; }
     return out;
   }
@@ -167,24 +172,55 @@ export default class ClawdeExtension extends Extension {
     const t = this._newTarget(); this._x = t.x; this._y = t.y;
   }
 
-  // inner region to wander: a split pane if we're in one, else the window content area
+  // 터미널 창(또는 Terminator 분할 pane) 안쪽만 — 데스크톱 배경은 null
   _roam() {
     const r = this._sub || (this._win ? this._win.get_frame_rect() : null);
-    if (!r) { const m = Main.layoutManager.primaryMonitor;
-      return { x: m.x + 40, y: m.y + 40, w: m.width - 80, h: m.height - 80 }; }
+    if (!r) return null;
     const padX = this._sub ? 14 : 26, padTop = this._sub ? 20 : 46, padBot = this._sub ? 14 : 22;
     return { x: r.x + padX, y: r.y + padTop, w: Math.max(16, r.width - 2 * padX), h: Math.max(16, r.height - padTop - padBot) };
   }
 
   _newTarget() {
     const rr = this._roam(), m = S / 2;
+    if (!rr) return { x: 0, y: 0 };
     return { x: rr.x + m + Math.random() * Math.max(1, rr.w - 2 * m),
              y: rr.y + m + Math.random() * Math.max(1, rr.h - 2 * m) };
   }
 
+  // 표정·말풍선을 Clawde 오른쪽 위에 배치
+  _layoutChrome(px, py, tag) {
+    const mul = this._sizeMul || 1, right = px + AW * mul, top = py;
+    if (tag) {
+      if (this._emote.text !== tag) this._emote.set_text(tag);
+      this._emote.opacity = 255;
+      const ew = this._emote.get_width() || 20;
+      this._emote.set_position(Math.round(right - ew - 2), top - 20);
+    } else this._emote.opacity = 0;
+    for (const b of this._bubbles) {
+      const bw = b.get_width() || 60;
+      b.set_position(Math.round(right - bw - 4), top - (tag ? 44 : 32));
+    }
+  }
+
+  _portalAt(cx, cy) {
+    const p = new St.Label({ text: "◎", style: "font-size: 30px; color: #e8975f;", opacity: 0 });
+    Main.layoutManager.uiGroup.add_child(p);
+    p.set_pivot_point(0.5, 0.5);
+    p.set_position(Math.round(cx - 15), Math.round(cy - 15));
+    this._portals.push(p);
+    return p;
+  }
+
+  _ease(actor, props, ms, done) {
+    actor.ease({ ...props, duration: ms, mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+      onStopped: () => { if (done) done(); } });
+  }
+
+  _destroyPortals() { for (const p of this._portals) p.destroy(); this._portals = []; }
+
   _say(text) {
     const b = new St.Label({ text,
-      style: "background-color:#fff; color:#16202b; border-radius:11px; padding:3px 8px; font-size:11px; font-weight:600;",
+      style: "background-color:#fff; color:#16202b; border-radius:11px; padding:4px 10px; font-size:12px; font-weight:600;",
       reactive: false });
     Main.layoutManager.uiGroup.add_child(b);
     this._bubbles.add(b);
@@ -209,17 +245,41 @@ export default class ClawdeExtension extends Extension {
   _setMood(m, ms) { this._mood = m; this._moodUntil = Date.now() + ms; }
 
   _teleport() {
-    const panes = this._winPanes(this._win);
-    if (panes && panes.length > 1 && Math.random() < 0.6) {
-      let p; do { p = pick(panes); } while (p === this._sub && panes.length > 1);
-      this._sub = p;                                        // hop to another split pane, same window
-      const t = this._newTarget(); this._x = t.x; this._y = t.y;
-    } else {
-      this._pickWindow();                                  // hop to another window
-    }
-    this._mood = "neutral"; this._moodUntil = 0; this._holdUntil = 0;
-    this._target = this._newTarget(); this._newGait();
-    this._tpAt = Date.now() + rand(TP_MIN, TP_MAX);
+    if (this._tpBusy) return;
+    this._tpBusy = true;
+    this._tpNext = () => {
+      const panes = this._winPanes(this._win);
+      if (panes && panes.length > 1 && Math.random() < 0.6) {
+        let p; do { p = pick(panes); } while (p === this._sub && panes.length > 1);
+        this._sub = p;
+        const t = this._newTarget(); this._x = t.x; this._y = t.y;
+      } else this._pickWindow();
+      this._mood = "neutral"; this._moodUntil = 0; this._holdUntil = 0;
+      this._target = this._newTarget(); this._newGait();
+      this._tpAt = Date.now() + rand(TP_MIN, TP_MAX);
+      this._hopUntil = Date.now() + 320;                         // 착지 후 통통
+      this._tpBusy = false;
+    };
+    const cx = this._x, cy = this._y;
+    const pA = this._portalAt(cx, cy);
+    pA.set_scale(0, 0);
+    this._ease(pA, { opacity: 255, scale_x: 1, scale_y: 1 }, 220);
+    this._ease(this._sprite, { scale_x: 0, scale_y: 0, opacity: 40 }, 220, () => {
+      this._destroyPortals();
+      this._sprite.hide();
+      if (this._tpNext) this._tpNext();
+      if (!this._win) { this._tpBusy = false; return; }
+      const pB = this._portalAt(this._x, this._y);
+      pB.set_scale(0, 0);
+      this._sprite.show();
+      this._sprite.set_scale(0, 0);
+      this._sprite.opacity = 40;
+      this._ease(pB, { opacity: 255, scale_x: 1, scale_y: 1 }, 220);
+      this._ease(this._sprite, { scale_x: 1.1, scale_y: 1.1, opacity: 255 }, 280, () => {
+        this._sprite.set_scale(this._sizeMul || 1, this._sizeMul || 1);
+        this._ease(pB, { opacity: 0, scale_x: 0, scale_y: 0 }, 180, () => this._destroyPortals());
+      });
+    });
   }
 
   _newGait() { this._gait = pick(["walk", "walk", "walk", "scurry", "hop"]); }
@@ -227,27 +287,30 @@ export default class ClawdeExtension extends Extension {
   _decide(now) {
     if (Math.random() < 0.42) { this._target = this._newTarget(); this._newGait(); return; }
     const r = Math.random();
-    if (r < 0.12) { this._startDance(); return; }
-    if (r < 0.20) { this._rollUntil = now + 520; this._target = this._newTarget(); return; }  // barrel roll
-    if (r < 0.24) { this._setMood(pick(["deadpan", "dead", "sus", "cool"]), 1100); this._say(pick(MEMES)); this._actKind = "look"; this._holdUntil = now + 1200; return; }
-    if (r < 0.36) { this._setMood("surprise", 550); this._actKind = "look"; this._holdUntil = now + 750; return; }
-    if (r < 0.50) { this._setMood(pick(FLAVORS), 900); this._actKind = "look"; this._holdUntil = now + 950; return; }
+    if (r < 0.14) { this._startDance(); return; }
+    if (r < 0.22) { this._rollUntil = now + 520; this._hopUntil = now + 320; this._target = this._newTarget(); return; }
+    if (r < 0.28) { this._setMood(pick(["deadpan", "dead", "sus", "cool"]), 1100); this._say(pick(MEMES)); this._actKind = "look"; this._holdUntil = now + 1200; return; }
+    if (r < 0.40) { this._setMood("surprise", 550); this._actKind = "look"; this._holdUntil = now + 750; return; }
+    if (r < 0.55) { this._setMood(pick(FLAVORS), 900); this._actKind = "look"; this._holdUntil = now + 950; return; }
     this._actKind = r < 0.72 ? "look" : r < 0.88 ? "sit" : "sleep";
     this._holdUntil = now + (this._actKind === "sleep" ? 2800 : this._actKind === "look" ? 1000 : 1300);
   }
 
   _tick() {
     const now = Date.now();
+    if (this._tpBusy) return;
     if (now > (this._nextBlink || 0)) { this._blinkUntil = now + 110; this._nextBlink = now + 1800 + Math.random() * 3200; }
     if (now >= this._tpAt) { this._teleport(); return; }
-    if (!this._win || this._win.minimized) { this._pickWindow(); if (!this._win) { this._sprite.hide(); return; } }
+    if (!this._win || this._win.minimized) { this._pickWindow(); }
+    const rr = this._roam();
+    if (!this._win || !rr) { this._sprite.hide(); this._emote.opacity = 0; return; }
     this._sprite.show();
 
     // oneko-style: bolt away from the cursor when it gets close
     const [ptrX, ptrY] = global.get_pointer();
     const dcx = this._x - ptrX, dcy = this._y - ptrY, dc = Math.hypot(dcx, dcy);
     if (dc < 90) {
-      const rr = this._roam(), d = dc || 1, sp = 6 * (this._speedMul || 1);
+      const d = dc || 1, sp = 6 * (this._speedMul || 1);
       this._x = Math.min(Math.max(this._x + dcx / d * sp, rr.x + S / 2), rr.x + rr.w - S / 2);
       this._y = Math.min(Math.max(this._y + dcy / d * sp, rr.y + S / 2), rr.y + rr.h - S / 2);
       this._walkDist += sp; this._holdUntil = 0; this._moodUntil = 0;
@@ -256,9 +319,7 @@ export default class ClawdeExtension extends Extension {
       this._sprite.queue_repaint();
       const fx = Math.round(this._x - AW / 2), fy = Math.round(this._y - S / 2);
       this._sprite.set_position(fx + Math.round(Math.sin(now / 40) * 2), fy);
-      if (this._emote.text !== "😱") this._emote.set_text("😱");
-      this._emote.opacity = 255; this._emote.set_position(fx + 4, fy - 16);
-      for (const b of this._bubbles) b.set_position(fx - 8, fy - 34);
+      this._layoutChrome(fx, fy, "😱");
       this._target = this._newTarget();
       return;
     }
@@ -271,7 +332,9 @@ export default class ClawdeExtension extends Extension {
       const dx = this._target.x - this._x, dy = this._target.y - this._y, dist = Math.hypot(dx, dy);
       if (dist < 4) { this._decide(now); }
       else { const sp = (this._gait === "scurry" ? SPEED * 1.6 : SPEED) * (this._speedMul || 1);
-        this._x += dx / dist * sp; this._y += dy / dist * sp; this._walkDist += sp; walking = true; }
+        this._x += dx / dist * sp; this._y += dy / dist * sp; this._walkDist += sp; walking = true;
+        this._x = Math.min(Math.max(this._x, rr.x + S / 2), rr.x + rr.w - S / 2);
+        this._y = Math.min(Math.max(this._y, rr.y + S / 2), rr.y + rr.h - S / 2); }
     }
 
     // expression + legs
@@ -296,19 +359,19 @@ export default class ClawdeExtension extends Extension {
 
     this._grid = buildGrid(expr, legRows);
     this._sprite.queue_repaint();
-    const px = Math.round(this._x - AW / 2 + swayX), py = Math.round(this._y - S / 2 + bob);
+    let hopY = 0;
+    if (now < (this._hopUntil || 0)) hopY = -Math.round(Math.sin((1 - (this._hopUntil - now) / 320) * Math.PI) * 6);
+    const px = Math.round(this._x - AW / 2 + swayX), py = Math.round(this._y - S / 2 + bob + hopY);
     this._sprite.set_position(px, py);
     this._sprite.set_pivot_point(0.5, 0.5);
     this._sprite.rotation_angle_z = now < (this._rollUntil || 0) ? (1 - (this._rollUntil - now) / 520) * 360
       : (expr === "spin" ? (now / 2) % 360 : (expr === "dizzy" ? Math.sin(now / 110) * 12 : 0));
 
-    if (tag) { if (this._emote.text !== tag) this._emote.set_text(tag);
-      this._emote.opacity = 255; this._emote.set_position(px + 4, py - 16); }
-    else this._emote.opacity = 0;
-    for (const b of this._bubbles) b.set_position(px - 8, py - 34);
+    this._layoutChrome(px, py, tag || "");
   }
 
   disable() {
+    this._destroyPortals?.();
     if (this._settings && this._settingsId) { this._settings.disconnect(this._settingsId); this._settingsId = 0; }
     for (const id of this._sources) GLib.source_remove(id);
     this._sources?.clear();
