@@ -61,8 +61,11 @@ const TERMINALS = ["terminal", "gnome-terminal", "org.gnome.terminal", "org.gnom
 const PX = 4, S = PX * 9, AW = 11 * PX;   // 기본 스프라이트를 더 크게 (36px body)
 const TICK_MS = 80, SPEED = 4;
 const TP_MIN = 6000, TP_MAX = 13000, BUBBLE_MS = 1800;
+const TP_OUT_MS = 420, TP_IN_MS = 480, TP_ANIM_MS = 30;  // 텔레포트는 별도 30ms 타이머로 부드럽게
+const PW = 78, PH = 44;                                   // 포털 타원 크기
 const pick = a => a[Math.floor(Math.random() * a.length)];
 const rand = (a, b) => a + Math.random() * (b - a);
+const clamp01 = u => Math.min(1, Math.max(0, u));
 
 function buildGrid(mood, legRows) {
   const g = BODY.map(row => [...row].map(ch => ch === "1" ? ORANGE : null));
@@ -81,7 +84,7 @@ export default class ClawdeExtension extends Extension {
     this._holdUntil = 0; this._actKind = null;
     this._gait = "walk"; this._walkDist = 0;
     this._bubbleUntil = 0; this._win = null;
-    this._tpBusy = false; this._tpPhase = 0; this._tpNext = null; this._portals = [];
+    this._tpBusy = false; this._tpPhase = null; this._tpAnimId = 0; this._portal = null;
 
     this._sprite = new St.DrawingArea({ width: AW, height: S, reactive: true });
     this._sprite.connect("repaint", area => this._paint(area));
@@ -202,21 +205,53 @@ export default class ClawdeExtension extends Extension {
     }
   }
 
+  // 데모/Electron과 같은 주황 타원 포털 — DrawingArea로 직접 그림
   _portalAt(cx, cy) {
-    const p = new St.Label({ text: "◎", style: "font-size: 30px; color: #e8975f;", opacity: 0 });
+    const p = new St.DrawingArea({ width: PW, height: PH, reactive: false, opacity: 0 });
+    p.connect("repaint", area => {
+      const cr = area.get_context();
+      const rings = [
+        [1.00, 1.00, 0.88, 0.75, 0.35],
+        [0.78, 0.91, 0.59, 0.37, 0.75],
+        [0.55, 0.76, 0.41, 0.25, 0.95],
+        [0.28, 1.00, 0.95, 0.85, 1.00],
+      ];
+      for (const [s, r, g, b, a] of rings) {
+        cr.save();
+        cr.translate(PW / 2, PH / 2);
+        cr.scale(1, 0.55);
+        cr.setSourceRGBA(r, g, b, a);
+        cr.arc(0, 0, (PW / 2 - 2) * s, 0, Math.PI * 2);
+        cr.fill();
+        cr.restore();
+      }
+      cr.$dispose();
+    });
     Main.layoutManager.uiGroup.add_child(p);
     p.set_pivot_point(0.5, 0.5);
-    p.set_position(Math.round(cx - 15), Math.round(cy - 15));
-    this._portals.push(p);
+    p.set_scale(0, 0);
+    p.set_position(Math.round(cx - PW / 2), Math.round(cy - PH / 2));
+    p.queue_repaint();
     return p;
   }
 
-  _ease(actor, props, ms, done) {
-    actor.ease({ ...props, duration: ms, mode: Clutter.AnimationMode.EASE_OUT_QUAD,
-      onStopped: () => { if (done) done(); } });
+  _destroyPortal() {
+    if (this._portal) { this._portal.destroy(); this._portal = null; }
   }
 
-  _destroyPortals() { for (const p of this._portals) p.destroy(); this._portals = []; }
+  // 창/분할 pane으로 순간이동 (애니메이션 중간 단계)
+  _relocate() {
+    const panes = this._winPanes(this._win);
+    if (panes && panes.length > 1 && Math.random() < 0.6) {
+      let p; do { p = pick(panes); } while (p === this._sub && panes.length > 1);
+      this._sub = p;
+      const t = this._newTarget(); this._x = t.x; this._y = t.y;
+    } else {
+      this._pickWindow();
+    }
+    this._mood = "neutral"; this._moodUntil = 0; this._holdUntil = 0;
+    this._target = this._newTarget(); this._newGait();
+  }
 
   _say(text) {
     const b = new St.Label({ text,
@@ -239,47 +274,109 @@ export default class ClawdeExtension extends Extension {
     if (wasAsleep) { this._setMood("surprise", 700); this._say("!!"); }
     else if (Math.random() < 0.18) { this._setMood("love", 1300); this._say("♥"); }
     else { this._setMood("happy", 900); this._say(pick(HELLOS)); }
-    if (Math.random() < 0.45) this._teleport();
+    if (Math.random() < 0.85) this._teleport();  // 포크로 텔레포트 애니메이션을 자주 볼 수 있게
   }
 
   _setMood(m, ms) { this._mood = m; this._moodUntil = Date.now() + ms; }
 
+  // 포털 텔레포트 시작 — Clutter.ease 대신 틱 기반 (GNOME에서 콜백이 안 뜨는 문제 회피)
   _teleport() {
     if (this._tpBusy) return;
     this._tpBusy = true;
-    this._tpNext = () => {
-      const panes = this._winPanes(this._win);
-      if (panes && panes.length > 1 && Math.random() < 0.6) {
-        let p; do { p = pick(panes); } while (p === this._sub && panes.length > 1);
-        this._sub = p;
-        const t = this._newTarget(); this._x = t.x; this._y = t.y;
-      } else this._pickWindow();
-      this._mood = "neutral"; this._moodUntil = 0; this._holdUntil = 0;
-      this._target = this._newTarget(); this._newGait();
-      this._tpAt = Date.now() + rand(TP_MIN, TP_MAX);
-      this._hopUntil = Date.now() + 320;                         // 착지 후 통통
-      this._tpBusy = false;
-    };
-    const cx = this._x, cy = this._y;
-    const pA = this._portalAt(cx, cy);
-    pA.set_scale(0, 0);
-    this._ease(pA, { opacity: 255, scale_x: 1, scale_y: 1 }, 220);
-    this._ease(this._sprite, { scale_x: 0, scale_y: 0, opacity: 40 }, 220, () => {
-      this._destroyPortals();
-      this._sprite.hide();
-      if (this._tpNext) this._tpNext();
-      if (!this._win) { this._tpBusy = false; return; }
-      const pB = this._portalAt(this._x, this._y);
-      pB.set_scale(0, 0);
-      this._sprite.show();
-      this._sprite.set_scale(0, 0);
-      this._sprite.opacity = 40;
-      this._ease(pB, { opacity: 255, scale_x: 1, scale_y: 1 }, 220);
-      this._ease(this._sprite, { scale_x: 1.1, scale_y: 1.1, opacity: 255 }, 280, () => {
-        this._sprite.set_scale(this._sizeMul || 1, this._sizeMul || 1);
-        this._ease(pB, { opacity: 0, scale_x: 0, scale_y: 0 }, 180, () => this._destroyPortals());
+    this._tpPhase = "out";
+    this._tpT0 = Date.now();
+    this._emote.opacity = 0;
+    this._destroyPortal();
+    this._portal = this._portalAt(this._x, this._y);
+    this._sprite.set_pivot_point(0.5, 0.5);
+    this._sprite.show();
+    if (!this._tpAnimId) {
+      this._tpAnimId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, TP_ANIM_MS, () => {
+        if (!this._tpBusy) {
+          this._sources.delete(this._tpAnimId); this._tpAnimId = 0;
+          return GLib.SOURCE_REMOVE;
+        }
+        this._tickTeleport(Date.now());
+        return GLib.SOURCE_CONTINUE;
       });
-    });
+      this._sources.add(this._tpAnimId);
+    }
+  }
+
+  _tickTeleport(now) {
+    const mul = this._sizeMul || 1;
+    const placeSprite = () => {
+      const px = Math.round(this._x - AW / 2), py = Math.round(this._y - S / 2);
+      this._sprite.set_position(px, py);
+    };
+    const placePortal = () => {
+      if (!this._portal) return;
+      this._portal.set_position(Math.round(this._x - PW / 2), Math.round(this._y - PH / 2));
+    };
+
+    if (this._tpPhase === "out") {
+      const u = clamp01((now - this._tpT0) / TP_OUT_MS);
+      const ease = u * u;
+      const ps = Math.min(1, u * 1.35);
+      if (this._portal) {
+        this._portal.set_scale(ps, ps);
+        this._portal.opacity = Math.round(Math.min(1, u * 2.2) * 255);
+        placePortal();
+      }
+      const ss = 1 - ease;
+      this._sprite.set_scale(ss * mul, ss * mul);
+      this._sprite.opacity = Math.round(255 * (1 - ease * 0.9));
+      this._sprite.rotation_angle_z = ease * 200;
+      placeSprite();
+      if (u >= 1) {
+        this._destroyPortal();
+        this._sprite.hide();
+        this._relocate();
+        if (!this._win) {
+          this._sprite.opacity = 255; this._sprite.set_scale(mul, mul);
+          this._sprite.rotation_angle_z = 0; this._tpBusy = false; this._tpPhase = null;
+          this._tpAt = now + rand(TP_MIN, TP_MAX); return;
+        }
+        this._tpPhase = "in";
+        this._tpT0 = now;
+        this._portal = this._portalAt(this._x, this._y);
+        this._sprite.set_scale(0, 0);
+        this._sprite.opacity = 30;
+        this._sprite.rotation_angle_z = -200;
+        this._sprite.show();
+        placeSprite();
+      }
+      return;
+    }
+
+    if (this._tpPhase === "in") {
+      const u = clamp01((now - this._tpT0) / TP_IN_MS);
+      const ease = 1 - (1 - u) * (1 - u);
+      // 포털: 전반 열림 → 후반 닫힘
+      const portalU = u < 0.45 ? clamp01(u / 0.45) : clamp01(1 - (u - 0.45) / 0.55);
+      if (this._portal) {
+        this._portal.set_scale(portalU, portalU);
+        this._portal.opacity = Math.round(portalU * 255);
+        placePortal();
+      }
+      // 살짝 오버슈트 후 정착
+      const ss = ease < 0.82 ? (ease / 0.82) * 1.15 : 1.15 - ((ease - 0.82) / 0.18) * 0.15;
+      this._sprite.set_scale(ss * mul, ss * mul);
+      this._sprite.opacity = Math.round(30 + ease * 225);
+      this._sprite.rotation_angle_z = -200 * (1 - ease);
+      placeSprite();
+      if (u >= 1) {
+        this._destroyPortal();
+        this._sprite.set_scale(mul, mul);
+        this._sprite.opacity = 255;
+        this._sprite.rotation_angle_z = 0;
+        this._hopUntil = now + 360;
+        this._setMood("surprise", 500);
+        this._tpBusy = false;
+        this._tpPhase = null;
+        this._tpAt = now + rand(TP_MIN, TP_MAX);
+      }
+    }
   }
 
   _newGait() { this._gait = pick(["walk", "walk", "walk", "scurry", "hop"]); }
@@ -371,7 +468,7 @@ export default class ClawdeExtension extends Extension {
   }
 
   disable() {
-    this._destroyPortals?.();
+    this._destroyPortal?.();
     if (this._settings && this._settingsId) { this._settings.disconnect(this._settingsId); this._settingsId = 0; }
     for (const id of this._sources) GLib.source_remove(id);
     this._sources?.clear();
